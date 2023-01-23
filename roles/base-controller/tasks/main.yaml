@@ -1,0 +1,23 @@
+- name: CREATE CONFIG DIRECTORY
+  ansible.builtin.file:
+    path: "/home/{{ ansible_ssh_user }}/.config"
+    state: directory
+    mode: 0700
+    owner: "{{ ansible_ssh_user }}"
+    group: "{{ ansible_ssh_user }}"
+
+- name: CREATE OPENSTACK CONFIG DIRECTORY FOR REMOTE USER
+  ansible.builtin.file:
+    path: "/home/{{ ansible_ssh_user }}/.config/openstack"
+    state: directory
+    mode: 0700
+    owner: "{{ ansible_ssh_user }}"
+    group: "{{ ansible_ssh_user }}"
+
+- name: CREATE OPENSTACK CLOUDS YAML FOR REMOTE USER
+  ansible.builtin.template:
+    src: "./home/ansible_ssh_user/.config/openstack/clouds.yaml"
+    dest: "/home/{{ ansible_ssh_user }}/.config/openstack/clouds.yaml"
+    mode: 0600
+    owner: "{{ ansible_ssh_user }}"
+    group: "{{ ansible_ssh_user }}"

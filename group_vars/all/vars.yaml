@@ -1,0 +1,48 @@
+# SQL
+openstack_sql_host: pi1.rmb938.me
+openstack_sql_root_dbpass: "{{ vault_openstack_sql_root_dbpass }}"
+
+# RabbitMQ
+openstack_rabbit_host: pi1.rmb938.me
+openstack_rabbit_root_pass: "{{ vault_openstack_rabbit_root_pass }}"
+openstack_rabbit_pass: "{{ vault_openstack_rabbit_pass }}"
+
+# Memcached
+openstack_memcached_host: pi1.rmb938.me
+
+# Keystone
+openstack_keystone_host: pi1.rmb938.me
+openstack_keystone_dbpass: "{{ vault_openstack_keystone_dbpass }}"
+
+# Interactive Users
+openstack_admin_pass: "{{ vault_openstack_admin_pass }}"
+openstack_demo_pass: "{{ vault_openstack_demo_pass }}"
+
+# Cinder
+openstack_cinder_host: pi1.rmb938.me
+openstack_cinder_dbpass: "{{ vault_openstack_cinder_dbpass }}"
+openstack_cinder_pass: "{{ vault_openstack_cinder_pass }}"
+
+# Glance
+openstack_glance_host: pi1.rmb938.me
+openstack_glance_dbpass: "{{ vault_openstack_glance_dbpass }}"
+openstack_glance_pass: "{{ vault_openstack_glance_pass }}"
+
+# Placement
+openstack_placement_host: pi1.rmb938.me
+openstack_placement_dbpass: "{{ vault_openstack_placement_dbpass }}"
+openstack_placement_pass: "{{ vault_openstack_placement_pass }}"
+
+# Nova
+openstack_nova_host: pi1.rmb938.me
+openstack_nova_dbpass: "{{ vault_openstack_nova_dbpass }}"
+openstack_nova_pass: "{{ vault_openstack_nova_pass }}"
+
+# Neutron
+openstack_neutron_host: pi1.rmb938.me
+openstack_nuetron_metadata_secret: "{{ vault_openstack_nuetron_metadata_secret }}"
+openstack_neutron_dbpass: "{{ vault_openstack_neutron_dbpass }}"
+openstack_neutron_pass: "{{ vault_openstack_neutron_pass }}"
+
+# Others
+openstack_dash_dbpass: "{{ vault_openstack_dash_dbpass }}"

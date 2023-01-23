@@ -1,0 +1,32 @@
+- name: INSTALL UTILS
+  ansible.builtin.package:
+    name:
+      - htop
+      - glances
+      - acl
+      - net-tools
+    state: present
+
+# Fedora can't use RDO, openstack is in it's base repos but yoga, not zed
+# Zed is in Rawhide though, so maybe use that, it's set to be relased in April
+# - name: FEDORA INSTALL OPENSTACK REPO
+#   ansible.builtin.dnf:
+#     name: https://repos.fedorapeople.org/openstack/openstack-zed/rdo-release-zed-1.el9s.noarch.rpm
+#     state: present
+#     disable_gpg_check: true
+#   when: ansible_distribution == 'Fedora'
+
+- name: UBUNTU CLOUD KEYRING
+  ansible.builtin.package:
+    name: ubuntu-cloud-keyring
+    state: present
+  when: ansible_distribution == 'Ubuntu'
+
+- name: UBUNTU INSTALL OPENSTACK REPO
+  ansible.builtin.apt_repository:
+    repo: deb http://ubuntu-cloud.archive.canonical.com/ubuntu jammy-updates/zed main
+  when: ansible_distribution == 'Ubuntu'
+
+- name: INSTALL OPENSTACK CLIENT
+  ansible.builtin.package:
+    name: python3-openstackclient

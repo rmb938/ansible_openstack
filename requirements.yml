@@ -1,0 +1,5 @@
+collections:
+  # Installing from git because the official one on galaxy doesn't support newer openstack sdks
+  - name: https://opendev.org/openstack/ansible-collections-openstack.git
+    type: git
+    version: 57cc3e6aadc8766f3e30239e882a72d236054edc

@@ -1,0 +1,8 @@
+[controllers]
+pi1.tailnet-047c.ts.net
+#pi2.tailnet-047c.ts.net
+#pi3.tailnet-047c.ts.net
+
+[compute]
+sora.tailnet-047c.ts.net
+# riku.tailnet-047c.ts.net

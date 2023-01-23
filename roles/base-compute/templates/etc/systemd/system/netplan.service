@@ -1,0 +1,11 @@
+# {{ ansible_managed }}
+# commit: {{ lookup('pipe', 'git rev-parse --short HEAD') }}
+[Unit]
+Description=Service to Run netplan on startup
+Before=network-pre.target
+Wants=network-pre.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/sbin/netplan generate
+RemainAfterExit=yes

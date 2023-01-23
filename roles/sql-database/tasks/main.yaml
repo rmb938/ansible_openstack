@@ -1,0 +1,64 @@
+- name: INSTALL SQL DATABASE
+  ansible.builtin.package:
+    name:
+      - mariadb-server
+      - python3-pymysql
+    state: present
+
+- name: ENABLE & START MYSQL SERVICE
+  ansible.builtin.systemd:
+    name: mysql
+    state: started
+    enabled: true
+
+- name: MARIADB OPENSTACK CONFIGURATION
+  ansible.builtin.template:
+    src: ./etc/mysql/mariadb.conf.d/99-openstack.cnf
+    dest: /etc/mysql/mariadb.conf.d/99-openstack.cnf
+    mode: 0644
+  register: mariadb_openstack_configuration
+
+- name: RESTART MYSQL SERVICE
+  ansible.builtin.systemd:
+    name: mysql
+    state: restarted
+  when: mariadb_openstack_configuration.changed
+
+  # mysql_secure_installation
+- name: Update MariaDB root password
+  community.mysql.mysql_user:
+    name: root
+    host_all: true
+    password: "{{ openstack_sql_root_dbpass }}"
+    check_implicit_admin: true # on initial install there is no password
+    login_user: root
+    login_password: "{{ openstack_sql_root_dbpass }}"
+    login_unix_socket: /run/mysqld/mysqld.sock
+
+  # mysql_secure_installation
+- name: Delete anonymous MySQL user
+  community.mysql.mysql_user:
+    name: ""
+    host_all: true
+    state: absent
+    login_user: root
+    login_password: "{{ openstack_sql_root_dbpass }}"
+    login_unix_socket: /run/mysqld/mysqld.sock
+
+  # mysql_secure_installation
+- name: remove remote root
+  community.mysql.mysql_query:
+    query:
+      - DELETE FROM mysql.user WHERE User='root' AND Host NOT IN ('localhost', '127.0.0.1', '::1')
+    login_user: root
+    login_password: "{{ openstack_sql_root_dbpass }}"
+    login_unix_socket: /run/mysqld/mysqld.sock
+
+  # mysql_secure_installation
+- name: Remove MySQL test database
+  community.mysql.mysql_db:
+    name: test
+    state: absent
+    login_user: root
+    login_password: "{{ openstack_sql_root_dbpass }}"
+    login_unix_socket: /run/mysqld/mysqld.sock

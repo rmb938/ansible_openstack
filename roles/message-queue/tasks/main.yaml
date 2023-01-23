@@ -1,0 +1,40 @@
+- name: INSTALL MESSAGE QUEUE
+  ansible.builtin.package:
+    name:
+      - rabbitmq-server
+    state: present
+
+- name: ENABLE & START rabbitmq SERVICE
+  ansible.builtin.systemd:
+    name: rabbitmq-server
+    state: started
+    enabled: true
+
+- name: REMOVE GUEST USER
+  community.rabbitmq.rabbitmq_user:
+    user: guest
+    state: absent
+
+- name: CREATE ROOT USER
+  community.rabbitmq.rabbitmq_user:
+    user: root
+    password: "{{ openstack_rabbit_root_pass }}"
+    configure_priv: .*
+    read_priv: .*
+    write_priv: .*
+    tags: "administrator"
+    state: present
+
+- name: CREATE OPENSTACK USER
+  community.rabbitmq.rabbitmq_user:
+    user: openstack
+    password: "{{ openstack_rabbit_pass }}"
+    configure_priv: .*
+    read_priv: .*
+    write_priv: .*
+    state: present
+
+- name: ENABLE MANAGEMENT PLUGIN
+  community.rabbitmq.rabbitmq_plugin:
+    names: rabbitmq_management
+    state: enabled

@@ -1,0 +1,140 @@
+- name: Create neutron database
+  community.mysql.mysql_db:
+    name: neutron
+    state: present
+    login_user: root
+    login_password: "{{ openstack_sql_root_dbpass }}"
+    login_unix_socket: /run/mysqld/mysqld.sock
+
+- name: Create neutron database user
+  community.mysql.mysql_user:
+    name: neutron
+    password: "{{ openstack_neutron_dbpass }}"
+    priv: "neutron.*:ALL"
+    host: "{{ item }}"
+    state: present
+    login_user: root
+    login_password: "{{ openstack_sql_root_dbpass }}"
+    login_unix_socket: /run/mysqld/mysqld.sock
+  with_items:
+    - localhost
+    - "%"
+
+- name: CREATE neutron USER
+  no_log: true
+  openstack.cloud.identity_user:
+    cloud: admin
+    endpoint_type: admin
+    name: neutron
+    password: "{{ openstack_neutron_pass }}"
+    domain: default
+    state: present
+  become: false
+
+- name: ASSIGN neutron USER TO ADMIN ROLE
+  openstack.cloud.role_assignment:
+    cloud: admin
+    endpoint_type: admin
+    role: admin
+    user: neutron
+    project: service
+    domain: default
+    state: present
+  become: false
+
+- name: CREATE neutron SERVICE
+  openstack.cloud.catalog_service:
+    cloud: admin
+    endpoint_type: admin
+    name: neutron
+    type: network
+    description: "OpenStack Networking"
+    state: present
+  become: false
+
+- name: CREATE neutron ENDPOINTS
+  openstack.cloud.endpoint:
+    cloud: admin
+    endpoint_type: admin
+    service: neutron
+    endpoint_interface: "{{ item }}"
+    url: "http://{{ openstack_neutron_host }}:9696"
+    region: RegionOne
+    state: present
+  become: false
+  with_items:
+    - public
+    - internal
+    - admin
+
+- name: INSTALL neutron
+  ansible.builtin.package:
+    name:
+      - neutron-server
+      - neutron-plugin-ml2
+      - neutron-linuxbridge-agent
+      - neutron-dhcp-agent
+      - neutron-metadata-agent
+    state: present
+
+- name: neutron CONFIGURATION
+  ansible.builtin.template:
+    src: ./etc/neutron/neutron.conf
+    dest: /etc/neutron/neutron.conf
+    owner: root
+    group: neutron
+    mode: 0640
+  register: neutron_configuration
+
+- name: ml2 CONFIGURATION
+  ansible.builtin.template:
+    src: ./etc/neutron/plugins/ml2/ml2_conf.ini
+    dest: /etc/neutron/plugins/ml2/ml2_conf.ini
+    owner: root
+    group: neutron
+    mode: 0640
+  register: ml2_configuration
+
+- name: linuxbridge agent CONFIGURATION
+  ansible.builtin.template:
+    src: ./etc/neutron/plugins/ml2/linuxbridge_agent.ini
+    dest: /etc/neutron/plugins/ml2/linuxbridge_agent.ini
+    owner: root
+    group: neutron
+    mode: 0640
+  register: linuxbridge_configuration
+
+- name: dhcp agent CONFIGURATION
+  ansible.builtin.template:
+    src: ./etc/neutron/dhcp_agent.ini
+    dest: /etc/neutron/dhcp_agent.ini
+    owner: root
+    group: neutron
+    mode: 0640
+  register: dhcp_configuration
+
+- name: metadata agent CONFIGURATION
+  ansible.builtin.template:
+    src: ./etc/neutron/metadata_agent.ini
+    dest: /etc/neutron/metadata_agent.ini
+    owner: root
+    group: neutron
+    mode: 0640
+  register: metadata_configuration
+
+- name: neutron API DB SYNC
+  command: "/usr/bin/neutron-db-manage --config-file /etc/neutron/neutron.conf --config-file /etc/neutron/plugins/ml2/ml2_conf.ini upgrade head"
+  become: true
+  become_user: neutron
+  changed_when: false
+
+- name: Restart neutron for configuration change
+  ansible.builtin.systemd:
+    name: "{{ item }}"
+    state: restarted
+  when: neutron_configuration.changed or ml2_configuration.changed or dhcp_configuration.changed or metadata_configuration.changed
+  with_items:
+    - neutron-server
+    - neutron-linuxbridge-agent
+    - neutron-dhcp-agent
+    - neutron-metadata-agent

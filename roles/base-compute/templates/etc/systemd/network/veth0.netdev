@@ -1,0 +1,8 @@
+# {{ ansible_managed }}
+# commit: {{ lookup('pipe', 'git rev-parse --short HEAD') }}
+[NetDev]
+Name=veth0
+Kind=veth
+
+[Peer]
+Name=veth0-mgmt

@@ -1,0 +1,94 @@
+- name: Create placement database
+  community.mysql.mysql_db:
+    name: placement
+    state: present
+    login_user: root
+    login_password: "{{ openstack_sql_root_dbpass }}"
+    login_unix_socket: /run/mysqld/mysqld.sock
+
+- name: Create placement database user
+  community.mysql.mysql_user:
+    name: placement
+    password: "{{ openstack_placement_dbpass }}"
+    priv: "placement.*:ALL"
+    host: "{{ item }}"
+    state: present
+    login_user: root
+    login_password: "{{ openstack_sql_root_dbpass }}"
+    login_unix_socket: /run/mysqld/mysqld.sock
+  with_items:
+    - localhost
+    - "%"
+
+- name: CREATE placement USER
+  no_log: true
+  openstack.cloud.identity_user:
+    cloud: admin
+    endpoint_type: admin
+    name: placement
+    password: "{{ openstack_placement_pass }}"
+    domain: default
+    state: present
+  become: false
+
+- name: ASSIGN placement USER TO ADMIN ROLE
+  openstack.cloud.role_assignment:
+    cloud: admin
+    endpoint_type: admin
+    role: admin
+    user: placement
+    project: service
+    domain: default
+    state: present
+  become: false
+
+- name: CREATE placement SERVICE
+  openstack.cloud.catalog_service:
+    cloud: admin
+    endpoint_type: admin
+    name: placement
+    type: placement
+    description: "OpenStack Block Storage"
+    state: present
+  become: false
+
+- name: CREATE placement ENDPOINTS
+  openstack.cloud.endpoint:
+    cloud: admin
+    endpoint_type: admin
+    service: placement
+    endpoint_interface: "{{ item }}"
+    url: "http://{{ openstack_placement_host }}:8778"
+    region: RegionOne
+    state: present
+  become: false
+  with_items:
+    - public
+    - internal
+    - admin
+
+- name: INSTALL placement api
+  ansible.builtin.package:
+    name: placement-api
+    state: present
+
+- name: PLACEMENT CONFIGURATION
+  ansible.builtin.template:
+    src: ./etc/placement/placement.conf
+    dest: /etc/placement/placement.conf
+    owner: root
+    group: placement
+    mode: 0640
+  register: placement_configuration
+
+- name: PLACEMENT DB SYNC
+  command: "/usr/bin/placement-manage db sync"
+  become: true
+  become_user: placement
+  changed_when: false
+
+- name: Restart Apache2 for configuration change
+  ansible.builtin.systemd:
+    name: apache2
+    state: restarted
+  when: placement_configuration.changed

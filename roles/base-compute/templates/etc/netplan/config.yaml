@@ -1,0 +1,44 @@
+# {{ ansible_managed }}
+# commit: {{ lookup('pipe', 'git rev-parse --short HEAD') }}
+network:
+  version: 2
+  renderer: networkd
+  ethernets:
+    {% for interface_name in ansible_bond0.slaves -%}
+    {{ interface_name }}:
+      match:
+        name: "{{ interface_name }}"
+    {% endfor -%}
+    veth0:
+      match:
+        name: veth0
+    veth0-mgmt:
+      match:
+        name: veth0-mgmt
+      addresses:
+        - "{{ ansible_default_ipv4.address }}/{{ (ansible_default_ipv4.network + '/' + ansible_default_ipv4.netmask)|ansible.utils.ipaddr('prefix') }}"
+      nameservers:
+        search: ["rmb938.me"]
+        addresses: [{{ ansible_default_ipv4.gateway }}]
+      routes:
+        - to: 0.0.0.0/0
+          via: "{{ ansible_default_ipv4.gateway }}"
+    veth1:
+      match:
+        name: veth1
+    veth1-provider:
+      match:
+        name: veth1-provider
+      accept-ra: false
+      link-local: []
+  bonds:
+    bond0:
+      interfaces: [{{ ansible_bond0.slaves|join(',') }}]
+      parameters:
+        mode: "{{ ansible_bond0.mode }}"
+        lacp-rate: "{{ ansible_bond0.lacp_rate }}"
+  bridges:
+    br0:
+      interfaces: [bond0, veth0, veth1]
+      accept-ra: false
+      link-local: []

@@ -1,0 +1,130 @@
+- name: Create nova databases
+  community.mysql.mysql_db:
+    name: "{{ item }}"
+    state: present
+    login_user: root
+    login_password: "{{ openstack_sql_root_dbpass }}"
+    login_unix_socket: /run/mysqld/mysqld.sock
+  with_items:
+    - nova_api
+    - nova
+    - nova_cell0
+
+- name: Create nova database users
+  community.mysql.mysql_user:
+    name: nova
+    password: "{{ openstack_nova_dbpass }}"
+    priv:
+      "nova_api.*": "ALL"
+      "nova.*": "ALL"
+      "nova_cell0.*": "ALL"
+    host: "{{ item }}"
+    state: present
+    login_user: root
+    login_password: "{{ openstack_sql_root_dbpass }}"
+    login_unix_socket: /run/mysqld/mysqld.sock
+  with_items:
+    - localhost
+    - "%"
+
+- name: CREATE nova USER
+  no_log: true
+  openstack.cloud.identity_user:
+    cloud: admin
+    endpoint_type: admin
+    name: nova
+    password: "{{ openstack_nova_pass }}"
+    domain: default
+    state: present
+  become: false
+
+- name: ASSIGN nova USER TO ADMIN ROLE
+  openstack.cloud.role_assignment:
+    cloud: admin
+    endpoint_type: admin
+    role: admin
+    user: nova
+    project: service
+    domain: default
+    state: present
+  become: false
+
+- name: CREATE nova SERVICE
+  openstack.cloud.catalog_service:
+    cloud: admin
+    endpoint_type: admin
+    name: nova
+    type: compute
+    description: "OpenStack Compute"
+    state: present
+  become: false
+
+- name: CREATE nova ENDPOINTS
+  openstack.cloud.endpoint:
+    cloud: admin
+    endpoint_type: admin
+    service: nova
+    endpoint_interface: "{{ item }}"
+    url: "http://{{ openstack_nova_host }}:8774/v2.1"
+    region: RegionOne
+    state: present
+  become: false
+  with_items:
+    - public
+    - internal
+    - admin
+
+- name: INSTALL nova
+  ansible.builtin.package:
+    name:
+      - nova-api
+      - nova-conductor
+      - nova-novncproxy
+      - nova-scheduler
+    state: present
+
+- name: NOVA CONFIGURATION
+  ansible.builtin.template:
+    src: ./etc/nova/nova.conf
+    dest: /etc/nova/nova.conf
+    owner: root
+    group: nova
+    mode: 0640
+  register: nova_configuration
+
+- name: Nova API DB SYNC
+  command: "/usr/bin/nova-manage api_db sync"
+  become: true
+  become_user: nova
+  changed_when: false
+
+- name: Nova Map cell_v2
+  command: "/usr/bin/nova-manage cell_v2 map_cell0"
+  become: true
+  become_user: nova
+  changed_when: false
+
+- name: Nova create cell1
+  command: "/usr/bin/nova-manage cell_v2 create_cell --name=cell1 --verbose"
+  become: true
+  become_user: nova
+  register: nova_cell1_create
+  failed_when: "nova_cell1_create.rc not in [0, 2]"
+  changed_when: "nova_cell1_create.rc == 0"
+
+- name: Nova DB SYNC
+  command: "/usr/bin/nova-manage db sync"
+  become: true
+  become_user: nova
+  changed_when: false
+
+- name: Restart Nova for configuration change
+  ansible.builtin.systemd:
+    name: "{{ item }}"
+    state: restarted
+  when: nova_configuration.changed
+  with_items:
+    - nova-api
+    - nova-scheduler
+    - nova-conductor
+    - nova-novncproxy

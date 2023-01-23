@@ -1,0 +1,198 @@
+- name: Create keystone database
+  community.mysql.mysql_db:
+    name: keystone
+    state: present
+    login_user: root
+    login_password: "{{ openstack_sql_root_dbpass }}"
+    login_unix_socket: /run/mysqld/mysqld.sock
+
+- name: Create keystone database user
+  community.mysql.mysql_user:
+    name: keystone
+    password: "{{ openstack_keystone_dbpass }}"
+    priv: "keystone.*:ALL"
+    host: "{{ item }}"
+    state: present
+    login_user: root
+    login_password: "{{ openstack_sql_root_dbpass }}"
+    login_unix_socket: /run/mysqld/mysqld.sock
+  with_items:
+    - localhost
+    - "%"
+
+- name: INSTALL KEYSTONE
+  ansible.builtin.package:
+    name:
+      - keystone
+    state: present
+
+- name: KEYSTONE CONFIGURATION
+  ansible.builtin.template:
+    src: ./etc/keystone/keystone.conf
+    dest: /etc/keystone/keystone.conf
+    owner: keystone
+    group: keystone
+    mode: 0640
+  register: keystone_configuration
+
+# START COPIED FROM OFFICIAL OPENSTACK ANSIBLE
+# This is slightly modified but it works for them and we would be doing the same stuff
+- name: CHECK KEYSTONE DB_SYNC
+  command: "/usr/bin/keystone-manage db_sync --check"
+  become: true
+  become_user: keystone
+  register: keystone_db_sync_check
+  failed_when: "keystone_db_sync_check.rc == 1"
+  changed_when: false
+  run_once: true
+
+- name: Set the db sync local facts
+  ini_file:
+    dest: "/etc/ansible/facts.d/openstack_ansible.fact"
+    section: keystone
+    option: "{{ item.name }}"
+    value: "{{ item.state }}"
+  with_items:
+    - name: "need_db_expand"
+      state: "{{ (keystone_db_sync_check.rc | int == 2) | bool }}"
+    - name: "need_db_migrate"
+      state: "{{ (keystone_db_sync_check.rc | int in [2, 3] ) | bool }}"
+    - name: "need_db_contract"
+      state: "{{ (keystone_db_sync_check.rc | int in [2, 3, 4]) | bool }}"
+
+- name: Refresh local facts
+  setup:
+    filter: ansible_local
+    gather_subset: "!all"
+
+- name: Stop Apache2 for DB Migration
+  ansible.builtin.systemd:
+    name: apache2
+    state: stopped
+  when:
+    - "(ansible_local['openstack_ansible']['keystone']['need_db_expand'] | bool) or (ansible_local['openstack_ansible']['keystone']['need_db_migrate'] | bool) or (ansible_local['openstack_ansible']['keystone']['need_db_contract'] | bool)"
+
+- name: Perform a Keystone DB sync expand
+  command: "/usr/bin/keystone-manage db_sync --expand"
+  become: true
+  become_user: keystone
+  when:
+    - "ansible_local['openstack_ansible']['keystone']['need_db_expand'] | bool"
+  run_once: true
+  # TODO: may need to notify memcache to flush cache
+
+- name: Perform a Keystone DB sync migrate
+  command: "/usr/bin/keystone-manage db_sync --migrate"
+  become: true
+  become_user: keystone
+  when:
+    - "ansible_local['openstack_ansible']['keystone']['need_db_migrate'] | bool"
+  run_once: true
+  # TODO: may need to notify memcache to flush cache
+
+- name: Perform a Keystone DB sync contract
+  command: "/usr/bin/keystone-manage db_sync --contract"
+  become: true
+  become_user: keystone
+  when:
+    - "ansible_local['openstack_ansible']['keystone']['need_db_contract'] | bool"
+  run_once: true
+  # TODO: may need to notify memcache to flush cache
+
+- name: Check if fernet keys exist
+  stat:
+    path: /etc/keystone/fernet-keys/0
+  register: _fernet_keys
+
+- name: Create fernet keys for Keystone
+  command: "/usr/bin/keystone-manage fernet_setup --keystone-user keystone --keystone-group keystone"
+  become: true
+  become_user: keystone
+  when: not _fernet_keys.stat.exists
+# END COPIED FROM OFFICIAL OPENSTACK ANSIBLE
+
+- name: Check if credential keys exist
+  stat:
+    path: /etc/keystone/credential-keys/0
+  register: _credential_keys
+
+- name: Create credentials keys for Keystone
+  command: "/usr/bin/keystone-manage credential_setup --keystone-user keystone --keystone-group keystone"
+  become: true
+  become_user: keystone
+  when: not _credential_keys.stat.exists
+
+- name: Bootstrap keystone admin and endpoints
+  command: |
+    /usr/bin/keystone-manage bootstrap --bootstrap-password {{ openstack_admin_pass }} \
+    --bootstrap-admin-url http://{{ openstack_keystone_host }}:5000/v3/ \
+    --bootstrap-internal-url http://{{ openstack_keystone_host }}:5000/v3/ \
+    --bootstrap-public-url http://{{ openstack_keystone_host }}:5000/v3/ \
+    --bootstrap-region-id RegionOne
+  become: true
+  become_user: keystone
+  changed_when: false
+
+- name: APACHE CONFIGURATION
+  ansible.builtin.template:
+    src: ./etc/apache2/apache2.conf
+    dest: /etc/apache2/apache2.conf
+    mode: 0644
+  register: apache_configuration
+
+- name: Restart Apache2 for configuration change
+  ansible.builtin.systemd:
+    name: apache2
+    state: restarted
+  when:
+    - "apache_configuration.changed or keystone_configuration.changed or (ansible_local['openstack_ansible']['keystone']['need_db_expand'] | bool) or (ansible_local['openstack_ansible']['keystone']['need_db_migrate'] | bool) or (ansible_local['openstack_ansible']['keystone']['need_db_contract'] | bool)"
+
+- name: CREATE SERVICE PROJECT
+  openstack.cloud.project:
+    cloud: admin
+    endpoint_type: admin
+    domain_id: default
+    description: "Service Project"
+    name: service
+    state: present
+  become: false
+
+- name: CREATE DEMO PROJECT
+  openstack.cloud.project:
+    cloud: admin
+    endpoint_type: admin
+    domain_id: default
+    description: "Demo Project"
+    name: demo
+    state: present
+  become: false
+
+- name: CREATE DEMO USER
+  no_log: true
+  openstack.cloud.identity_user:
+    cloud: admin
+    endpoint_type: admin
+    name: demo
+    password: "{{ openstack_demo_pass }}"
+    domain: default
+    state: present
+  become: false
+
+- name: CREATE DEMO ROLE
+  openstack.cloud.identity_role:
+    cloud: admin
+    endpoint_type: admin
+    name: demo
+    state: present
+  become: false
+
+- name: ASSIGN DEMO ROLE TO USER AND PROJECT
+  openstack.cloud.role_assignment:
+    cloud: admin
+    endpoint_type: admin
+    role: demo
+    user: demo
+    project: demo
+    domain: default
+    state: present
+  become: false

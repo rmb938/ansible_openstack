@@ -1,0 +1,119 @@
+- name: Create glance database
+  community.mysql.mysql_db:
+    name: glance
+    state: present
+    login_user: root
+    login_password: "{{ openstack_sql_root_dbpass }}"
+    login_unix_socket: /run/mysqld/mysqld.sock
+
+- name: Create glance database user
+  community.mysql.mysql_user:
+    name: glance
+    password: "{{ openstack_glance_dbpass }}"
+    priv: "glance.*:ALL"
+    host: "{{ item }}"
+    state: present
+    login_user: root
+    login_password: "{{ openstack_sql_root_dbpass }}"
+    login_unix_socket: /run/mysqld/mysqld.sock
+  with_items:
+    - localhost
+    - "%"
+
+- name: CREATE glance USER
+  no_log: true
+  openstack.cloud.identity_user:
+    cloud: admin
+    endpoint_type: admin
+    name: glance
+    password: "{{ openstack_glance_pass }}"
+    domain: default
+    state: present
+  become: false
+
+- name: ASSIGN glance USER TO ADMIN ROLE
+  openstack.cloud.role_assignment:
+    cloud: admin
+    endpoint_type: admin
+    role: admin
+    user: glance
+    project: service
+    domain: default
+    state: present
+  become: false
+
+- name: CREATE glance SERVICE
+  openstack.cloud.catalog_service:
+    cloud: admin
+    endpoint_type: admin
+    name: glance
+    type: image
+    description: "OpenStack Image"
+    state: present
+  become: false
+
+- name: CREATE glance ENDPOINTS
+  openstack.cloud.endpoint:
+    cloud: admin
+    endpoint_type: admin
+    service: glance
+    endpoint_interface: "{{ item }}"
+    url: "http://{{ openstack_glance_host }}:9292"
+    region: RegionOne
+    state: present
+  become: false
+  with_items:
+    - public
+    - internal
+    - admin
+
+- name: INSTALL glance
+  ansible.builtin.package:
+    name:
+      - glance
+    state: present
+
+- name: GLANCE CONFIGURATION
+  ansible.builtin.template:
+    src: ./etc/glance/glance-api.conf
+    dest: /etc/glance/glance-api.conf
+    owner: root
+    group: glance
+    mode: 0640
+  register: glance_configuration
+
+- name: GLANCE ROOT WRAP CONFIGURATION
+  ansible.builtin.template:
+    src: ./etc/glance/rootwrap.conf
+    dest: /etc/glance/rootwrap.conf
+    owner: root
+    group: glance
+    mode: 0640
+  register: glance_rootwrap_configuration
+
+- name: Perform a Glance DB sync
+  command: "/usr/bin/glance-manage db_sync"
+  become: true
+  become_user: glance
+  changed_when: false
+
+- name: Load glance metadata definitions
+  command: "/usr/bin/glance-manage db_load_metadefs /etc/glance/metadefs"
+  become: true
+  become_user: glance
+  changed_when: false
+
+# Fix for https://bugs.launchpad.net/glance-store/+bug/2000584
+# Telling cinder to not store sparse files nfs_sparsed_volumes=False does not work
+# so this is the only way until that bug is fixed
+- name: PATCH GLANCE CINDER TO CREATE IMAGES CORRECTLY
+  ansible.posix.patch:
+    src: ./usr/lib/python3/dist-packages/glance_store/_drivers/cinder.py.patch
+    dest: /usr/lib/python3/dist-packages/glance_store/_drivers/cinder.py
+  register: glance_cinder_patch
+
+- name: Restart Glance API for configuration change
+  ansible.builtin.systemd:
+    name: glance-api
+    state: restarted
+  when: glance_cinder_patch.changed or glance_configuration.changed or glance_rootwrap_configuration.changed

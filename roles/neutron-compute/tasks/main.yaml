@@ -1,0 +1,29 @@
+- name: INSTALL neutron
+  ansible.builtin.package:
+    name:
+      - neutron-linuxbridge-agent
+    state: present
+
+- name: neutron CONFIGURATION
+  ansible.builtin.template:
+    src: ./etc/neutron/neutron.conf
+    dest: /etc/neutron/neutron.conf
+    owner: root
+    group: neutron
+    mode: 0640
+  register: neutron_configuration
+
+- name: linuxbridge agent CONFIGURATION
+  ansible.builtin.template:
+    src: ./etc/neutron/plugins/ml2/linuxbridge_agent.ini
+    dest: /etc/neutron/plugins/ml2/linuxbridge_agent.ini
+    owner: root
+    group: neutron
+    mode: 0640
+  register: linuxbridge_configuration
+
+- name: Restart neutron for configuration change
+  ansible.builtin.systemd:
+    name: neutron-linuxbridge-agent
+    state: restarted
+  when: neutron_configuration.changed or linuxbridge_configuration.changed

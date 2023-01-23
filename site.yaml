@@ -1,0 +1,97 @@
+# - name: Base Controller
+#   hosts: controllers
+#   remote_user: ansible
+#   become: true
+#   roles:
+#     - base-controller
+
+# - name: Base Compute
+#   hosts: compute
+#   remote_user: ansible
+#   become: true
+#   roles:
+#     - base-compute
+
+# - name: Base Shared
+#   hosts: all
+#   remote_user: ansible
+#   become: true
+#   roles:
+#     - base-shared
+
+# - name: SQL Database
+#   hosts: controllers
+#   remote_user: ansible
+#   become: true
+#   roles:
+#     - sql-database
+
+# - name: Message Queue
+#   hosts: controllers
+#   remote_user: ansible
+#   become: true
+#   roles:
+#     - message-queue
+
+# - name: Memcache
+#   hosts: controllers
+#   remote_user: ansible
+#   become: true
+#   roles:
+#     - memcache
+
+# - name: Keystone
+#   hosts: controllers
+#   remote_user: ansible
+#   become: true
+#   roles:
+#     - keystone
+
+# - name: Cinder
+#   hosts: controllers
+#   remote_user: ansible
+#   become: true
+#   roles:
+#     - cinder
+
+- name: Glance
+  hosts: controllers
+  remote_user: ansible
+  become: true
+  roles:
+    - glance
+
+# - name: Placement
+#   hosts: controllers
+#   remote_user: ansible
+#   become: true
+#   roles:
+#     - placement
+
+# - name: Nova Controller
+#   hosts: controllers
+#   remote_user: ansible
+#   become: true
+#   roles:
+#     - nova-controller
+
+# - name: Nova Compute
+#   hosts: compute
+#   remote_user: ansible
+#   become: true
+#   roles:
+#     - nova-compute
+
+# - name: Neutron Controller
+#   hosts: controllers
+#   remote_user: ansible
+#   become: true
+#   roles:
+#     - neutron-controller
+
+# - name: Neutron Compute
+#   hosts: compute
+#   remote_user: ansible
+#   become: true
+#   roles:
+#     - neutron-compute

@@ -1,0 +1,22 @@
+# {{ ansible_managed }}
+# commit: {{ lookup('pipe', 'git rev-parse --short HEAD') }}
+
+clouds:
+  admin:
+    auth:
+      username: admin
+      password: "{{ openstack_admin_pass }}"
+      project_name: admin
+      user_domain_name: Default
+      project_domain_name: Default
+      auth_url: "http://{{ openstack_keystone_host }}:5000/"
+    region_name: RegionOne
+  demo:
+    auth:
+      username: demo
+      password: "{{ openstack_demo_pass }}"
+      project_name: demo
+      user_domain_name: Default
+      project_domain_name: Default
+      auth_url: "http://{{ openstack_keystone_host }}:5000/"
+    region_name: RegionOne

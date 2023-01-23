@@ -1,0 +1,25 @@
+- name: INSTALL MEMCACHE
+  ansible.builtin.package:
+    name:
+      - memcached
+      - python3-memcache
+    state: present
+
+- name: ENABLE & START memcached SERVICE
+  ansible.builtin.systemd:
+    name: memcached
+    state: started
+    enabled: true
+
+- name: MEMCACHE CONFIGURATION
+  ansible.builtin.template:
+    src: ./etc/memcached.conf
+    dest: /etc/memcached.conf
+    mode: 0644
+  register: memcache_configuration
+
+- name: RESTART MEMCACHE SERVICE
+  ansible.builtin.systemd:
+    name: memcached
+    state: restarted
+  when: memcache_configuration.changed

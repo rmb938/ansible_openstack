@@ -1,0 +1,118 @@
+- name: Create cinder database
+  community.mysql.mysql_db:
+    name: cinder
+    state: present
+    login_user: root
+    login_password: "{{ openstack_sql_root_dbpass }}"
+    login_unix_socket: /run/mysqld/mysqld.sock
+
+- name: Create cinder database user
+  community.mysql.mysql_user:
+    name: cinder
+    password: "{{ openstack_cinder_dbpass }}"
+    priv: "cinder.*:ALL"
+    host: "{{ item }}"
+    state: present
+    login_user: root
+    login_password: "{{ openstack_sql_root_dbpass }}"
+    login_unix_socket: /run/mysqld/mysqld.sock
+  with_items:
+    - localhost
+    - "%"
+
+- name: CREATE CINDER USER
+  no_log: true
+  openstack.cloud.identity_user:
+    cloud: admin
+    endpoint_type: admin
+    name: cinder
+    password: "{{ openstack_cinder_pass }}"
+    domain: default
+    state: present
+  become: false
+
+- name: ASSIGN CINDER USER TO ADMIN ROLE
+  openstack.cloud.role_assignment:
+    cloud: admin
+    endpoint_type: admin
+    role: admin
+    user: cinder
+    project: service
+    domain: default
+    state: present
+  become: false
+
+- name: CREATE CINDER SERVICE
+  openstack.cloud.catalog_service:
+    cloud: admin
+    endpoint_type: admin
+    name: cinderv3
+    type: volumev3
+    description: "OpenStack Block Storage"
+    state: present
+  become: false
+
+- name: CREATE CINDER ENDPOINTS
+  openstack.cloud.endpoint:
+    cloud: admin
+    endpoint_type: admin
+    service: cinderv3
+    endpoint_interface: "{{ item }}"
+    url: "http://{{ openstack_cinder_host }}:8776/v3/%(project_id)s"
+    region: RegionOne
+    state: present
+  become: false
+  with_items:
+    - public
+    - internal
+    - admin
+
+- name: INSTALL CINDER
+  ansible.builtin.package:
+    name:
+      - cinder-api
+      - cinder-scheduler
+      - cinder-volume
+    state: present
+
+- name: CINDER CONFIGURATION
+  ansible.builtin.template:
+    src: ./etc/cinder/cinder.conf
+    dest: /etc/cinder/cinder.conf
+    owner: root
+    group: cinder
+    mode: 0640
+  register: cinder_configuration
+
+- name: CINDER NFS SHARES
+  ansible.builtin.template:
+    src: ./etc/cinder/nfs_shares
+    dest: /etc/cinder/nfs_shares
+    owner: root
+    group: cinder
+    mode: 0640
+  register: cinder_nfs_shares_configuration
+
+- name: CINDER DB SYNC
+  command: "/usr/bin/cinder-manage db sync"
+  become: true
+  become_user: cinder
+  changed_when: false
+
+- name: Restart Apache2 for configuration change
+  ansible.builtin.systemd:
+    name: apache2
+    state: restarted
+  when: cinder_configuration.changed
+
+- name: Restart Cinder Scheduler for configuration change
+  ansible.builtin.systemd:
+    name: cinder-scheduler
+    state: restarted
+  when: cinder_configuration.changed
+
+- name: Restart Cinder Volume for configuration change
+  ansible.builtin.systemd:
+    name: cinder-volume
+    state: restarted
+  when: cinder_configuration.changed or cinder_nfs_shares_configuration.changed
