@@ -1,7 +1,9 @@
-# - name: DISABLE QUIET BOOT
-#   ansible.builtin.command:
-#     cmd: /usr/sbin/grubby --remove-args="rhgb quiet" --update-kernel=ALL
-#   changed_when: false
+- name: DISABLE UBUNTU MOTD-NEWS
+  lineinfile:
+    dest: /etc/default/motd-news
+    state: present
+    regexp: "^ENABLED="
+    line: "ENABLED=0"
 
 - name: REMOVE SNAPD
   ansible.builtin.package:
@@ -91,6 +93,12 @@
     - { name: "net.ipv6.neigh.default.gc_thresh1", value: 8096 }
     - { name: "net.ipv6.neigh.default.gc_thresh2", value: 12288 }
     - { name: "net.ipv6.neigh.default.gc_thresh3", value: 16384 }
+
+- name: INSTALL REQUIRED TOOLS
+  ansible.builtin.package:
+    name:
+      - nfs-common
+    state: present
 
 - name: COPY VETH NETDEVS
   ansible.builtin.template:
