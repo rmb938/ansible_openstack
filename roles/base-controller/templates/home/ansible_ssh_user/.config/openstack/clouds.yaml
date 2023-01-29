@@ -1,5 +1,4 @@
 # {{ ansible_managed }}
-# commit: {{ lookup('pipe', 'git rev-parse --short HEAD') }}
 
 clouds:
   admin:
