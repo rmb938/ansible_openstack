@@ -25,7 +25,7 @@ DEBUG = False
 # This setting controls whether or not compression is enabled. Disabling
 # compression makes Horizon considerably slower, but makes it much easier
 # to debug JS and CSS changes
-#COMPRESS_ENABLED = not DEBUG
+COMPRESS_ENABLED = not DEBUG
 
 # This setting controls whether compression happens on the fly, or offline
 # with `python manage.py compress`
@@ -37,7 +37,7 @@ DEBUG = False
 # with the list of host/domain names that the application can serve.
 # For more information see:
 # https://docs.djangoproject.com/en/dev/ref/settings/#allowed-hosts
-#ALLOWED_HOSTS = ['horizon.example.com', ]
+ALLOWED_HOSTS = {{ groups['dashboard'] }}
 
 # Set SSL proxy settings:
 # Pass this header from the proxy after terminating the SSL,
@@ -96,7 +96,7 @@ SECRET_KEY = secret_key.generate_or_read_from_file('/var/lib/openstack-dashboard
 CACHES = {
     'default': {
         'BACKEND': 'django.core.cache.backends.memcached.MemcachedCache',
-        'LOCATION': 'pi1.rmb938.me:11211',
+        'LOCATION': '{{ openstack_memcached_host }}:11211',
     },
 }
 
@@ -134,7 +134,7 @@ OPENSTACK_NEUTRON_NETWORK = {
     'enable_ipv6': True,
     'enable_quotas': False,
     'enable_rbac_policy': True,
-    'enable_router': False,
+    'enable_router': True,
     'extra_provider_types': {},
     'physical_networks': [],
     'segmentation_id_range': {},
@@ -153,7 +153,7 @@ EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 #EMAIL_HOST_USER = 'djangomail'
 #EMAIL_HOST_PASSWORD = 'top-secret!'
 
-OPENSTACK_HOST = "pi1.rmb938.me"
+OPENSTACK_HOST = "{{ openstack_keystone_host }}"
 OPENSTACK_KEYSTONE_URL = "http://%s:5000/identity/v3" % OPENSTACK_HOST
 
 # The timezone of the server. This should correspond with the timezone

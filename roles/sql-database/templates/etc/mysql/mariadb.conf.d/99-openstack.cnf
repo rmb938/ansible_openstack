@@ -1,6 +1,6 @@
 # {{ ansible_managed }}
 [mysqld]
-bind-address = {{ ansible_default_ipv4.address }}
+bind-address = {{ ansible_tailscale0.ipv4.address }}
 
 default-storage-engine = innodb
 innodb_file_per_table = on

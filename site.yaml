@@ -20,56 +20,56 @@
     - base-shared
 
 - name: SQL Database
-  hosts: controllers
+  hosts: sql_database
   remote_user: ansible
   become: true
   roles:
     - sql-database
 
 - name: Message Queue
-  hosts: controllers
+  hosts: message_queue
   remote_user: ansible
   become: true
   roles:
     - message-queue
 
 - name: Memcache
-  hosts: controllers
+  hosts: memcache
   remote_user: ansible
   become: true
   roles:
     - memcache
 
 - name: Keystone
-  hosts: controllers
+  hosts: keystone
   remote_user: ansible
   become: true
   roles:
     - keystone
 
 - name: Cinder
-  hosts: controllers
+  hosts: cinder_controllers
   remote_user: ansible
   become: true
   roles:
     - cinder
 
 - name: Glance
-  hosts: controllers
+  hosts: glance_controllers
   remote_user: ansible
   become: true
   roles:
     - glance
 
 - name: Placement
-  hosts: controllers
+  hosts: placement_controllers
   remote_user: ansible
   become: true
   roles:
     - placement
 
 - name: Nova Controller
-  hosts: controllers
+  hosts: nova_controllers
   remote_user: ansible
   become: true
   roles:
@@ -83,7 +83,7 @@
     - nova-compute
 
 - name: Neutron Controller
-  hosts: controllers
+  hosts: neutron_controllers
   remote_user: ansible
   become: true
   roles:
@@ -97,7 +97,7 @@
     - neutron-compute
 
 - name: Dashboard
-  hosts: controllers
+  hosts: dashboard
   remote_user: ansible
   become: true
   roles:

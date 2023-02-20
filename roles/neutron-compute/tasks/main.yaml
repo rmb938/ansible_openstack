@@ -1,7 +1,47 @@
+- name: INSTALL OVS
+  ansible.builtin.package:
+    name:
+      - ovn-host
+      - ovn-common
+    state: present
+
+- name: OVN SET REMOVE DATABASE
+  command: "/usr/bin/ovs-vsctl set open . external-ids:ovn-remote=tcp:{{ hostvars[openstack_neutron_host]['ansible_tailscale0']['ipv4']['address'] }}:6642"
+  changed_when: false
+
+- name: OVN SET ENCAP TYPE
+  command: "/usr/bin/ovs-vsctl set open . external-ids:ovn-encap-type=geneve,vxlan"
+  changed_when: false
+
+- name: OVN SET ENCAP IP
+  command: "/usr/bin/ovs-vsctl set open . external-ids:ovn-encap-ip={{ ansible_default_ipv4.address }}"
+  changed_when: false
+
+- name: OVN ENABLE CASSIS AS GATEWAY
+  command: "/usr/bin/ovs-vsctl set open . external-ids:ovn-cms-options=enable-chassis-as-gw"
+  changed_when: false
+
+- name: OVS create maanger
+  command: "/usr/bin/ovs-vsctl --id @manager create Manager target='ptcp\\:6640\\:127.0.0.1' -- add Open_vSwitch . manager_options @manager"
+  changed_when: false
+  failed_when: false
+
+- name: OVS PROVIDER BRIDGE
+  command: "/usr/bin/ovs-vsctl --may-exist add-br br-provider -- set bridge br-provider protocols=OpenFlow13"
+  changed_when: false
+
+- name: OVS PROVIDER MAPPING
+  command: "/usr/bin/ovs-vsctl set open . external-ids:ovn-bridge-mappings=provider:br-provider"
+  changed_when: false
+
+- name: OVS PROVIDER ADD PORT
+  command: "/usr/bin/ovs-vsctl --may-exist add-port br-provider veth1-provider"
+  changed_when: false
+
 - name: INSTALL neutron
   ansible.builtin.package:
     name:
-      - neutron-linuxbridge-agent
+      - neutron-ovn-metadata-agent
     state: present
 
 - name: neutron CONFIGURATION
@@ -13,17 +53,19 @@
     mode: 0640
   register: neutron_configuration
 
-- name: linuxbridge agent CONFIGURATION
+- name: ovn metadata agent CONFIGURATION
   ansible.builtin.template:
-    src: ./etc/neutron/plugins/ml2/linuxbridge_agent.ini
-    dest: /etc/neutron/plugins/ml2/linuxbridge_agent.ini
+    src: ./etc/neutron/neutron_ovn_metadata_agent.ini
+    dest: /etc/neutron/neutron_ovn_metadata_agent.ini
     owner: root
     group: neutron
     mode: 0640
-  register: linuxbridge_configuration
+  register: ovn_metadata_configuration
 
 - name: Restart neutron for configuration change
   ansible.builtin.systemd:
-    name: neutron-linuxbridge-agent
+    name: "{{ item }}"
     state: restarted
-  when: neutron_configuration.changed or linuxbridge_configuration.changed
+  when: neutron_configuration.changed or ovn_metadata_configuration.changed
+  with_items:
+    - neutron-ovn-metadata-agent
