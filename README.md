@@ -48,7 +48,98 @@ This ansible playbook is specific to my Home Lab and makes the following assumpt
   * Raspberry Pis: 192.168.23.70 - 192.168.23.79
   * Compute Nodes: 192.168.23.50 - 192.168.23.59
   * Provider Network: 192.168.23.100 - 192.168.23.200
-    * Openstack will be configured with **no** DHCP server, instances will have their network configured via ConfigDrive https://docs.openstack.org/nova/latest/user/metadata.html
+    * Openstack will be configured with **no** DHCP server as we don't want it conflicting with the management LAN
+* All hosts have Tailscale installed and are defined in the `hosts` file with their Tailscale hostname i.e `pi1.tailnet-047c.ts.net`
+  * TBD: All services are configured to only be accessable via the Tailscale network and using Tailscale ACLs for access control
+    * All Openstack Tailscale nodes have the `servers` and `openstackNode` tags.
+    ```json
+    {
+      "tagOwners": {
+        "tag:servers":       ["autogroup:members"],
+        "tag:openstackNode": ["autogroup:members"],
+      },
+
+      // Access control lists.
+      "acls": [
+        { // anything can ipv4 ping anything
+          "action": "accept",
+          "proto":  "1", // icmp ipv4
+          "src":    ["*"],
+          "dst":    ["*:*"],
+        },
+        { // anything can ipv6 ping anything
+          "action": "accept",
+          "proto":  "58", // icmp ipv6
+          "src":    ["*"],
+          "dst":    ["*:*"],
+        },
+        // ssh into servers
+        {
+          "action": "accept",
+          "proto":  "TCP",
+          "src": [
+            "autogroup:members",
+            "tag:githubActions",
+          ],
+          "dst": ["tag:servers:22"],
+        },
+        // openstack things can talk to other openstack things
+        { // Openstack APIs
+          "action": "accept",
+          "src": [
+            "tag:openstackNode", // openstack nodes need to talk to the openstack api
+            "tag:servers", // servers need to talk to the openstack api
+            "autogroup:members", // members need to talk to openstack api
+          ],
+          "dst": [
+            "tag:openstackNode:80",
+            "tag:openstackNode:443",
+            "tag:openstackNode:6080", // vnc console
+            "tag:openstackNode:5000", // keystone
+            "tag:openstackNode:8776", // cinder
+            "tag:openstackNode:9292", // glance
+            "tag:openstackNode:8778", // placement
+            "tag:openstackNode:8774", // nova
+            "tag:openstackNode:8775", // nova metadata
+            "tag:openstackNode:9696", // neutron
+            "tag:openstackNode:9876", // actavia
+          ],
+        },
+        { // OVSDB
+          "action": "accept",
+          "src":    ["tag:openstackNode"],
+          "dst": [
+            "tag:openstackNode:6641", // nothd
+            "tag:openstackNode:6642", // southd
+          ],
+        },
+        { // Memcached
+          "action": "accept",
+          "src":    ["tag:openstackNode"],
+          "dst":    ["tag:openstackNode:11211"],
+        },
+        { // MySQL
+          "action": "accept",
+          "src":    ["tag:openstackNode"],
+          "dst":    ["tag:openstackNode:3306"],
+        },
+        { // RabbitMQ
+          "action": "accept",
+          "src":    ["tag:openstackNode"],
+          "dst":    ["tag:openstackNode:5672"],
+        },
+      ],
+      "ssh": [
+        // Allow members to ssh into servers, with auth checking
+        {
+          "action": "check",
+          "src":    ["autogroup:members"],
+          "dst":    ["tag:servers"],
+          "users":  ["autogroup:nonroot"],
+        },
+      ],
+    }
+    ```
 
 ## Requirements
 
