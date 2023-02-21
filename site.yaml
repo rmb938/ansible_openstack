@@ -96,6 +96,13 @@
   roles:
     - neutron-compute
 
+- name: Octavia Controller
+  hosts: octavia_controllers
+  remote_user: ansible
+  become: true
+  roles:
+    - octavia-controller
+
 - name: Dashboard
   hosts: dashboard
   remote_user: ansible

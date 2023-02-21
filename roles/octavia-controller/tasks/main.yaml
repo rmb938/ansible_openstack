@@ -1,0 +1,109 @@
+- name: Create octavia database
+  community.mysql.mysql_db:
+    name: octavia
+    state: present
+    login_user: root
+    login_password: "{{ openstack_sql_root_dbpass }}"
+    login_unix_socket: /run/mysqld/mysqld.sock
+  delegate_to: "{{ groups['sql_database'][0] }}"
+
+- name: Create octavia database user
+  community.mysql.mysql_user:
+    name: octavia
+    password: "{{ openstack_octavia_dbpass }}"
+    priv: "octavia.*:ALL"
+    host: "{{ item }}"
+    state: present
+    login_user: root
+    login_password: "{{ openstack_sql_root_dbpass }}"
+    login_unix_socket: /run/mysqld/mysqld.sock
+  delegate_to: "{{ groups['sql_database'][0] }}"
+  with_items:
+    - localhost
+    - "%"
+
+- name: CREATE octavia USER
+  no_log: true
+  openstack.cloud.identity_user:
+    cloud: admin
+    endpoint_type: admin
+    name: octavia
+    password: "{{ openstack_octavia_pass }}"
+    domain: default
+    state: present
+  become: false
+
+- name: ASSIGN octavia USER TO ADMIN ROLE
+  openstack.cloud.role_assignment:
+    cloud: admin
+    endpoint_type: admin
+    role: admin
+    user: octavia
+    project: service
+    domain: default
+    state: present
+  become: false
+
+- name: CREATE octavia SERVICE
+  openstack.cloud.catalog_service:
+    cloud: admin
+    endpoint_type: admin
+    name: octavia
+    type: load-balancer
+    description: "OpenStack Octavia"
+    state: present
+  become: false
+
+- name: CREATE octavia ENDPOINTS
+  openstack.cloud.endpoint:
+    cloud: admin
+    endpoint_type: admin
+    service: octavia
+    endpoint_interface: "{{ item }}"
+    url: "http://{{ openstack_octavia_host }}:9876"
+    region: RegionOne
+    state: present
+  become: false
+  with_items:
+    - public
+    - internal
+    - admin
+
+- name: INSTALL octavia
+  ansible.builtin.package:
+    name:
+      - octavia-api
+      - octavia-health-manager
+      - octavia-housekeeping
+      - octavia-worker
+      - octavia-driver-agent
+      - python3-octavia
+      - python3-ovn-octavia-provider
+      - python3-octaviaclient
+    state: present
+
+- name: INSTALL CONFIGURATION
+  ansible.builtin.template:
+    src: ./etc/octavia/octavia.conf
+    dest: /etc/octavia/octavia.conf
+    owner: root
+    group: octavia
+    mode: 0640
+  register: octavia_configuration
+
+- name: octavia API DB SYNC
+  command: "/usr/bin/octavia-db-manage --config-file /etc/octavia/octavia.conf upgrade head"
+  become: true
+  become_user: octavia
+  changed_when: false
+
+- name: Restart octavia for configuration change
+  ansible.builtin.systemd:
+    name: "{{ item }}"
+    state: restarted
+  when: octavia_configuration.changed
+  with_items:
+    - octavia-api
+    - octavia-health-manager
+    - octavia-housekeeping
+    - octavia-worker

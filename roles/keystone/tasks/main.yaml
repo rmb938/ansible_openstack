@@ -157,6 +157,48 @@
     state: present
   become: false
 
+- name: CREATE LOADBALANCER ADMIN ROLE
+  openstack.cloud.identity_role:
+    cloud: admin
+    endpoint_type: admin
+    name: load-balancer_admin
+    state: present
+  become: false
+
+- name: CREATE LOADBALANCER MEMBER ROLE
+  openstack.cloud.identity_role:
+    cloud: admin
+    endpoint_type: admin
+    name: load-balancer_member
+    state: present
+  become: false
+
+- name: ASSIGN ROLES TO ADMIN USER AND PROJECT
+  openstack.cloud.role_assignment:
+    cloud: admin
+    endpoint_type: admin
+    role: "{{ item }}"
+    user: admin
+    project: admin
+    domain: default
+    state: present
+  become: false
+  with_items:
+    - member
+    - load-balancer_member
+
+- name: ASSIGN ROLES TO ADMIN USER
+  openstack.cloud.role_assignment:
+    cloud: admin
+    endpoint_type: admin
+    role: "{{ item }}"
+    user: admin
+    domain: default
+    state: present
+  become: false
+  with_items:
+    - load-balancer_admin
+
 - name: CREATE DEMO PROJECT
   openstack.cloud.project:
     cloud: admin
@@ -186,13 +228,17 @@
     state: present
   become: false
 
-- name: ASSIGN DEMO ROLE TO USER AND PROJECT
+- name: ASSIGN ROLES TO DEMO USER AND PROJECT
   openstack.cloud.role_assignment:
     cloud: admin
     endpoint_type: admin
-    role: demo
+    role: "{{ item }}"
     user: demo
     project: demo
     domain: default
     state: present
   become: false
+  with_items:
+    - demo
+    - member
+    - load-balancer_member

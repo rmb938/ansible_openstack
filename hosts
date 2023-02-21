@@ -25,6 +25,9 @@ pi3.tailnet-047c.ts.net
 [neutron_controllers]
 pi3.tailnet-047c.ts.net
 
+[octavia_controllers]
+pi3.tailnet-047c.ts.net
+
 [dashboard]
 pi3.tailnet-047c.ts.net
 

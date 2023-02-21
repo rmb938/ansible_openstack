@@ -2,6 +2,7 @@
   ansible.builtin.package:
     name:
       - openstack-dashboard
+      - python3-octavia-dashboard
     state: present
 
 - name: dashboard CONFIGURATION

@@ -20,4 +20,6 @@
 
 - name: INSTALL OPENSTACK CLIENT
   ansible.builtin.package:
-    name: python3-openstackclient
+    name:
+      - python3-openstackclient
+      - python3-octaviaclient
