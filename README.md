@@ -79,7 +79,6 @@ This ansible playbook is specific to my Home Lab and makes the following assumpt
           "proto":  "TCP",
           "src": [
             "autogroup:members",
-            "tag:githubActions",
           ],
           "dst": ["tag:servers:22"],
         },
