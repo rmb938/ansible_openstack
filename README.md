@@ -19,7 +19,6 @@ This ansible playbook is specific to my Home Lab and makes the following assumpt
     * The image is based off of Ubuntu Server https://ubuntu.com/raspberry-pi
 * The Openstack Compute Nodes are commodity compute hardware
   * These nodes have a default Ubuntu 22.04 Server installation
-  * This ansible will uninstall NetworkManager and install and configure systemd-networkd
   * These nodes are "upgraded" with a Chelsio T520-CR NIC configured in a LACP bond
 * Due to the limitations of a homelab I have chosen to use `veth` devices to seperate traffic instead of physical NICs. All networking will be setup in the following way:
   * If a host has multiple nics they will be bonded under `bond0` configured with LACP
