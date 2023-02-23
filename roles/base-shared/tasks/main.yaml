@@ -22,4 +22,5 @@
   ansible.builtin.package:
     name:
       - python3-openstackclient
+      - python3-osc-placement
       - python3-octaviaclient

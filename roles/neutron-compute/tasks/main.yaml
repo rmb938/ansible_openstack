@@ -26,6 +26,17 @@
   changed_when: false
   failed_when: false
 
+# For some reason when adding/removing floating IPs the neutron server errors with this
+#
+# 2023-02-23 03:30:05.842 25044 INFO neutron.plugins.ml2.drivers.ovn.mech_driver.mech_driver [None req-accc7595-320b-47e4-93e4-b07f6b205295 - - - - - -] Refusing to bind port 5266e0cd-1064-4baa-9679-8c5f2eb13d29 on host sora due to the OVN chassis bridge mapping physical networks [] not supporting physical network: provider
+# 2023-02-23 03:30:05.843 25044 ERROR neutron.plugins.ml2.managers [None req-accc7595-320b-47e4-93e4-b07f6b205295 - - - - - -] Failed to bind port 5266e0cd-1064-4baa-9679-8c5f2eb13d29 on host sora for vnic_type normal using segments [{'id': '5621a693-771d-4a57-beb4-d7a6e8dfc1b9', 'network_type': 'flat', 'physical_network': 'provider', 'segmentation_id': None, 'network_id': '71cbb38e-dc91-4db4-9a3a-7e499cd3fd69'}]
+#
+# This does not prevent the add/remove nor does it prevent it from working
+# I think it is related to a similar issue found here https://bugs.launchpad.net/charm-ovn-chassis/+bug/1883244 but I don't understand the actual fix
+# Looking in the code here https://github.com/openstack/neutron/blob/stable/zed/neutron/plugins/ml2/drivers/ovn/mech_driver/ovsdb/impl_idl_ovn.py#L850
+# shows it just looks at the bridge mappings in ovn (ovn-sbctl find Chassis hostname=sora), which is correctly set to ovn-bridge-mappings="provider:br-provider" so I am unsure why this is erroring
+# This is where the error is https://github.com/openstack/neutron/blob/stable/zed/neutron/plugins/ml2/drivers/ovn/mech_driver/mech_driver.py#L1004
+
 - name: OVS PROVIDER BRIDGE
   command: "/usr/bin/ovs-vsctl --may-exist add-br br-provider -- set bridge br-provider protocols=OpenFlow13"
   changed_when: false
