@@ -93,7 +93,6 @@ This ansible playbook is specific to my Home Lab and makes the following assumpt
           "dst": [
             "tag:openstackNode:80",
             "tag:openstackNode:443",
-            "tag:openstackNode:6080", // vnc console
             "tag:openstackNode:5000", // keystone
             "tag:openstackNode:8776", // cinder
             "tag:openstackNode:9292", // glance
@@ -104,6 +103,15 @@ This ansible playbook is specific to my Home Lab and makes the following assumpt
             "tag:openstackNode:9876", // actavia
           ],
         },
+        {// vnc console
+          "action": "accept",
+          "src": [
+            "autogroup:members", // members need to talk to openstack api
+          ],
+          "dst": [
+            "tag:openstackNode:6080", // vnc console
+          ],
+        }
         { // OVSDB
           "action": "accept",
           "src":    ["tag:openstackNode"],
