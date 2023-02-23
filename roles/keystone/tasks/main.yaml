@@ -197,6 +197,7 @@
     state: present
   become: false
   with_items:
+    - admin
     - load-balancer_admin
 
 - name: CREATE DEMO PROJECT
