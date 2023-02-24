@@ -107,3 +107,4 @@
     - octavia-health-manager
     - octavia-housekeeping
     - octavia-worker
+    - octavia-driver-agent
