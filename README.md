@@ -111,7 +111,7 @@ This ansible playbook is specific to my Home Lab and makes the following assumpt
           "dst": [
             "tag:openstackNode:6080", // vnc console
           ],
-        }
+        },
         { // OVSDB
           "action": "accept",
           "src":    ["tag:openstackNode"],

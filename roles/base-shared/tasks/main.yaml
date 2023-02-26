@@ -24,3 +24,9 @@
       - python3-openstackclient
       - python3-osc-placement
       - python3-octaviaclient
+
+- name: INSTALL PROMETHEUS EXPORTERS
+  ansible.builtin.package:
+    name:
+      - prometheus-node-exporter
+    state: present

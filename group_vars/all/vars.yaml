@@ -48,6 +48,3 @@ openstack_neutron_pass: "{{ vault_openstack_neutron_pass }}"
 openstack_octavia_host: "{{ groups['octavia_controllers'][0] }}"
 openstack_octavia_dbpass: "{{ vault_openstack_octavia_dbpass }}"
 openstack_octavia_pass: "{{ vault_openstack_octavia_pass }}"
-
-# Others
-openstack_dash_dbpass: "{{ vault_openstack_dash_dbpass }}"
