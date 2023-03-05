@@ -11,12 +11,10 @@
   ansible.builtin.package:
     name: ubuntu-cloud-keyring
     state: present
-  when: ansible_distribution == 'Ubuntu'
 
 - name: UBUNTU INSTALL OPENSTACK REPO
   ansible.builtin.apt_repository:
     repo: deb http://ubuntu-cloud.archive.canonical.com/ubuntu jammy-updates/zed main
-  when: ansible_distribution == 'Ubuntu'
 
 - name: INSTALL OPENSTACK CLIENT
   ansible.builtin.package:

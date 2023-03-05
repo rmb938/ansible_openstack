@@ -74,7 +74,6 @@
     name:
       - cinder-api
       - cinder-scheduler
-      - cinder-volume
     state: present
 
 - name: CINDER CONFIGURATION
@@ -85,15 +84,6 @@
     group: cinder
     mode: 0640
   register: cinder_configuration
-
-- name: CINDER NFS SHARES
-  ansible.builtin.template:
-    src: ./etc/cinder/nfs_shares
-    dest: /etc/cinder/nfs_shares
-    owner: root
-    group: cinder
-    mode: 0640
-  register: cinder_nfs_shares_configuration
 
 - name: CINDER DB SYNC
   command: "/usr/bin/cinder-manage db sync"
@@ -112,9 +102,3 @@
     name: cinder-scheduler
     state: restarted
   when: cinder_configuration.changed
-
-- name: Restart Cinder Volume for configuration change
-  ansible.builtin.systemd:
-    name: cinder-volume
-    state: restarted
-  when: cinder_configuration.changed or cinder_nfs_shares_configuration.changed

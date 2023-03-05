@@ -1,0 +1,29 @@
+- name: INSTALL CINDER
+  ansible.builtin.package:
+    name:
+      - cinder-volume
+    state: present
+
+- name: CINDER CONFIGURATION
+  ansible.builtin.template:
+    src: ./etc/cinder/cinder.conf
+    dest: /etc/cinder/cinder.conf
+    owner: root
+    group: cinder
+    mode: 0640
+  register: cinder_configuration
+
+- name: CINDER NFS SHARES
+  ansible.builtin.template:
+    src: ./etc/cinder/nfs_shares
+    dest: /etc/cinder/nfs_shares
+    owner: root
+    group: cinder
+    mode: 0640
+  register: cinder_nfs_shares_configuration
+
+- name: Restart Cinder Volume for configuration change
+  ansible.builtin.systemd:
+    name: cinder-volume
+    state: restarted
+  when: cinder_configuration.changed or cinder_nfs_shares_configuration.changed

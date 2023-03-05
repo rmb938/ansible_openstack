@@ -43,6 +43,9 @@ nova_controllers
 neutron_controllers
 dashboard
 
+[cinder_storage]
+sora.tailnet-047c.ts.net
+
 [compute]
 sora.tailnet-047c.ts.net
 # riku.tailnet-047c.ts.net

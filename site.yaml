@@ -47,12 +47,19 @@
   roles:
     - keystone
 
-- name: Cinder
+- name: Cinder Controller
   hosts: cinder_controllers
   remote_user: ansible
   become: true
   roles:
-    - cinder
+    - cinder-controller
+
+- name: Cinder Storage
+  hosts: cinder_storage
+  remote_user: ansible
+  become: true
+  roles:
+    - cinder-storage
 
 - name: Glance
   hosts: glance_controllers
