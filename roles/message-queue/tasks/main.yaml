@@ -38,3 +38,8 @@
   community.rabbitmq.rabbitmq_plugin:
     names: rabbitmq_management
     state: enabled
+
+- name: ENABLE PROMETHEUS PLUGIN
+  community.rabbitmq.rabbitmq_plugin:
+    names: rabbitmq_prometheus
+    state: enabled
