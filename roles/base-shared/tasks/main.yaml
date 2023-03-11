@@ -1,20 +1,33 @@
-- name: INSTALL UTILS
+- name: INSTALL UTILS UBUNTU
   ansible.builtin.package:
     name:
       - htop
       - glances
       - acl
       - net-tools
+      - curl
     state: present
+  when: ansible_distribution == 'Ubuntu'
+
+- name: INSTALL UTILS FREEBSD
+  ansible.builtin.package:
+    name:
+      - sysutils/htop
+      - sysutils/py-glances
+      - ftp/curl
+    state: present
+  when: ansible_distribution == 'FreeBSD'
 
 - name: UBUNTU CLOUD KEYRING
   ansible.builtin.package:
     name: ubuntu-cloud-keyring
     state: present
+  when: ansible_distribution == 'Ubuntu'
 
 - name: UBUNTU INSTALL OPENSTACK REPO
   ansible.builtin.apt_repository:
     repo: deb http://ubuntu-cloud.archive.canonical.com/ubuntu jammy-updates/zed main
+  when: ansible_distribution == 'Ubuntu'
 
 - name: INSTALL OPENSTACK CLIENT
   ansible.builtin.package:
@@ -22,9 +35,25 @@
       - python3-openstackclient
       - python3-osc-placement
       - python3-octaviaclient
+  when: ansible_distribution == 'Ubuntu'
 
-- name: INSTALL PROMETHEUS EXPORTERS
+- name: INSTALL PROMETHEUS EXPORTERS UBUNTU
   ansible.builtin.package:
     name:
       - prometheus-node-exporter
     state: present
+  when: ansible_distribution == 'Ubuntu'
+
+- name: INSTALL PROMETHEUS EXPORTERS FREEBSD
+  ansible.builtin.package:
+    name:
+      - sysutils/node_exporter
+    state: present
+  when: ansible_distribution == 'FreeBSD'
+
+- name: ENABLE & START PROMETHEUS EXPORTERS FREEBSD
+  ansible.builtin.service:
+    name: node_exporter
+    state: started
+    enabled: true
+  when: ansible_distribution == 'FreeBSD'

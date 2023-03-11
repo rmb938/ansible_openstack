@@ -165,10 +165,27 @@ This ansible playbook is specific to my Home Lab and makes the following assumpt
     systemctl enable --now tailscaled
     tailscale up --ssh
     ```
+  * FreeBSD
+    ```bash
+    pkg install tailscale
+    sysrc tailscaled_enable="YES"
+    sysrc tailscaled_syslog_output_enable="YES"
+    service tailscaled start
+    tailscale up --ssh
+    ```
 * Ansible User created and setup with sudo
-  ```bash
-  useradd ansible
-  mkdir /home/ansible
-  chown ansible:ansible /home/ansible/
-  echo "ansible ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/ansible
-  ```
+  * Ubuntu
+    ```bash
+    useradd ansible
+    mkdir /home/ansible
+    chown ansible:ansible /home/ansible/
+    echo "ansible ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/ansible
+    ```
+  * FreeBSD
+    ```bash
+    pkg install sudo
+    echo '%wheel ALL=(ALL) ALL' > /usr/local/etc/sudoers.d/allow-wheel-user-login
+    pkg install lang/python3
+    pw user add -n ansible -d /home/ansible -m -s /bin/sh
+    echo "ansible ALL=(ALL) NOPASSWD: ALL" > /usr/local/etc/sudoers.d/ansible
+    ```

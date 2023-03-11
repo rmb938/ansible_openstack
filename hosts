@@ -1,5 +1,5 @@
 [sql_database]
-pi1.tailnet-047c.ts.net
+openstack-mysql.tailnet-047c.ts.net
 
 [message_queue]
 pi1.tailnet-047c.ts.net
@@ -35,7 +35,6 @@ pi3.tailnet-047c.ts.net
 pi3.tailnet-047c.ts.net
 
 [controllers:children]
-sql_database
 message_queue
 memcache
 keystone

@@ -4,7 +4,7 @@
     state: present
     login_user: root
     login_password: "{{ openstack_sql_root_dbpass }}"
-    login_unix_socket: /run/mysqld/mysqld.sock
+    login_unix_socket: /var/run/mysql/mysql.sock
 
 - name: Create keystone database user
   community.mysql.mysql_user:
@@ -15,7 +15,7 @@
     state: present
     login_user: root
     login_password: "{{ openstack_sql_root_dbpass }}"
-    login_unix_socket: /run/mysqld/mysqld.sock
+    login_unix_socket: /var/run/mysql/mysql.sock
   with_items:
     - localhost
     - "%"
@@ -180,7 +180,6 @@
     role: "{{ item }}"
     user: admin
     project: admin
-    domain: default
     state: present
   become: false
   with_items:
@@ -221,14 +220,6 @@
     state: present
   become: false
 
-- name: CREATE DEMO ROLE
-  openstack.cloud.identity_role:
-    cloud: admin
-    endpoint_type: admin
-    name: demo
-    state: present
-  become: false
-
 - name: ASSIGN ROLES TO DEMO USER AND PROJECT
   openstack.cloud.role_assignment:
     cloud: admin
@@ -236,10 +227,8 @@
     role: "{{ item }}"
     user: demo
     project: demo
-    domain: default
     state: present
   become: false
   with_items:
-    - demo
     - member
     - load-balancer_member

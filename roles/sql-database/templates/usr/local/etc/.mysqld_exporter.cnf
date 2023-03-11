@@ -1,0 +1,4 @@
+[client]
+socket=/var/run/mysql/mysql.sock
+user=exporter
+password=exporter

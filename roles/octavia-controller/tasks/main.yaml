@@ -4,7 +4,7 @@
     state: present
     login_user: root
     login_password: "{{ openstack_sql_root_dbpass }}"
-    login_unix_socket: /run/mysqld/mysqld.sock
+    login_unix_socket: /var/run/mysql/mysql.sock
   delegate_to: "{{ groups['sql_database'][0] }}"
 
 - name: Create octavia database user
@@ -16,7 +16,7 @@
     state: present
     login_user: root
     login_password: "{{ openstack_sql_root_dbpass }}"
-    login_unix_socket: /run/mysqld/mysqld.sock
+    login_unix_socket: /var/run/mysql/mysql.sock
   delegate_to: "{{ groups['sql_database'][0] }}"
   with_items:
     - localhost

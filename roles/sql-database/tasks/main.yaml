@@ -1,26 +1,26 @@
 - name: INSTALL SQL DATABASE
   ansible.builtin.package:
     name:
-      - mariadb-server
-      - python3-pymysql
+      - databases/mariadb106-server
+      - databases/py-pymysql
     state: present
 
 - name: ENABLE & START MYSQL SERVICE
-  ansible.builtin.systemd:
-    name: mysql
+  ansible.builtin.service:
+    name: mysql-server
     state: started
     enabled: true
 
 - name: MARIADB OPENSTACK CONFIGURATION
   ansible.builtin.template:
-    src: ./etc/mysql/mariadb.conf.d/99-openstack.cnf
-    dest: /etc/mysql/mariadb.conf.d/99-openstack.cnf
+    src: ./usr/local/etc/mysql/conf.d/99-openstack.cnf
+    dest: /usr/local/etc/mysql/conf.d/99-openstack.cnf
     mode: 0644
   register: mariadb_openstack_configuration
 
 - name: RESTART MYSQL SERVICE
-  ansible.builtin.systemd:
-    name: mysql
+  ansible.builtin.service:
+    name: mysql-server
     state: restarted
   when: mariadb_openstack_configuration.changed
 
@@ -33,7 +33,7 @@
     check_implicit_admin: true # on initial install there is no password
     login_user: root
     login_password: "{{ openstack_sql_root_dbpass }}"
-    login_unix_socket: /run/mysqld/mysqld.sock
+    login_unix_socket: /var/run/mysql/mysql.sock
 
   # mysql_secure_installation
 - name: Delete anonymous MySQL user
@@ -43,7 +43,7 @@
     state: absent
     login_user: root
     login_password: "{{ openstack_sql_root_dbpass }}"
-    login_unix_socket: /run/mysqld/mysqld.sock
+    login_unix_socket: /var/run/mysql/mysql.sock
 
   # mysql_secure_installation
 - name: remove remote root
@@ -52,7 +52,7 @@
       - DELETE FROM mysql.user WHERE User='root' AND Host NOT IN ('localhost', '127.0.0.1', '::1')
     login_user: root
     login_password: "{{ openstack_sql_root_dbpass }}"
-    login_unix_socket: /run/mysqld/mysqld.sock
+    login_unix_socket: /var/run/mysql/mysql.sock
 
   # mysql_secure_installation
 - name: Remove MySQL test database
@@ -61,4 +61,52 @@
     state: absent
     login_user: root
     login_password: "{{ openstack_sql_root_dbpass }}"
-    login_unix_socket: /run/mysqld/mysqld.sock
+    login_unix_socket: /var/run/mysql/mysql.sock
+
+- name: CREATE MYSQL EXPORTER USER
+  community.mysql.mysql_user:
+    name: exporter
+    password: "exporter"
+    resource_limits:
+      MAX_USER_CONNECTIONS: 3
+    priv:
+      "*.*": "PROCESS,REPLICATION CLIENT,SLAVE MONITOR"
+      "performance_schema.*": "SELECT"
+      # "information_schema.*": "SELECT"
+    host: "{{ item }}"
+    state: present
+    login_user: root
+    login_password: "{{ openstack_sql_root_dbpass }}"
+    login_unix_socket: /var/run/mysql/mysql.sock
+  with_items:
+    - unix_socket
+
+- name: INSTALL MYSQLD EXPORTER
+  ansible.builtin.package:
+    name:
+      - net-mgmt/mysqld_exporter
+    state: present
+
+- name: ENABLE & START MYSQLD EXPORTER SERVICE
+  ansible.builtin.service:
+    name: mysqld_exporter
+    state: started
+    enabled: true
+
+- name: MYSQLD EXPORTER CONF FILE
+  community.general.sysrc:
+    name: mysqld_exporter_conffile
+    value: "/usr/local/etc/.mysqld_exporter.cnf"
+
+- name: MYSQLD EXPORTER CONFIGURATION
+  ansible.builtin.template:
+    src: ./usr/local/etc/.mysqld_exporter.cnf
+    dest: /usr/local/etc/.mysqld_exporter.cnf
+    mode: 0644
+  register: mysqld_exporter_configuration
+
+- name: ENABLE & START MYSQLD EXPORTER SERVICE
+  ansible.builtin.service:
+    name: mysqld_exporter
+    state: restarted
+  when: mysqld_exporter_configuration.changed
