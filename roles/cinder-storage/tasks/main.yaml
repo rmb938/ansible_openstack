@@ -4,14 +4,33 @@
       - cinder-volume
     state: present
 
+- name: CINDER VOLUME SYSTEMD OVERRIDE DIRECTORY
+  ansible.builtin.file:
+    path: /etc/systemd/system/cinder-volume.service.d
+    state: directory
+
+- name: CINDER VOLUME SYSTEMD OVERRIDE
+  ansible.builtin.template:
+    src: ./etc/systemd/system/cinder-volume.service.d/env.conf
+    dest: /etc/systemd/system/cinder-volume.service.d/env.conf
+    owner: root
+    group: root
+    mode: 0644
+  register: cinder_volume_systemd_override_configuration
+
+- name: DAEMON RELOAD SYSTEM FOR CINDER VOLUME OVERRIDE
+  ansible.builtin.systemd:
+    daemon_reload: true
+  when: cinder_volume_systemd_override_configuration.changed
+
 - name: CINDER CONFIGURATION
   ansible.builtin.template:
-    src: ./etc/cinder/cinder.conf
-    dest: /etc/cinder/cinder.conf
+    src: ./etc/cinder/cinder-volume.conf
+    dest: /etc/cinder/cinder-volume.conf
     owner: root
     group: cinder
     mode: 0640
-  register: cinder_configuration
+  register: cinder_volume_configuration
 
 - name: CINDER NFS SHARES
   ansible.builtin.template:
@@ -26,4 +45,4 @@
   ansible.builtin.systemd:
     name: cinder-volume
     state: restarted
-  when: cinder_configuration.changed or cinder_nfs_shares_configuration.changed
+  when: cinder_volume_configuration.changed or cinder_nfs_shares_configuration.changed

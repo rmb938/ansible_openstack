@@ -34,12 +34,7 @@
     write_priv: .*
     state: present
 
-- name: ENABLE MANAGEMENT PLUGIN
+- name: ENABLE PLUGINS
   community.rabbitmq.rabbitmq_plugin:
-    names: rabbitmq_management
-    state: enabled
-
-- name: ENABLE PROMETHEUS PLUGIN
-  community.rabbitmq.rabbitmq_plugin:
-    names: rabbitmq_prometheus
+    names: rabbitmq_management,rabbitmq_prometheus
     state: enabled
