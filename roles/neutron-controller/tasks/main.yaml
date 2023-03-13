@@ -123,3 +123,31 @@
   when: neutron_configuration.changed or ml2_configuration.changed
   with_items:
     - neutron-server
+
+- name: CREATE PROVIDER NETWORK
+  openstack.cloud.network:
+    cloud: admin
+    state: present
+    external: true
+    name: provider
+    project: admin
+    provider_network_type: flat
+    provider_physical_network: provider
+    shared: true
+    region_name: RegionOne
+  become: false
+
+- name: CREATE PROVIDER SUBNET
+  openstack.cloud.subnet:
+    cloud: admin
+    state: present
+    allocation_pool_start: "192.168.23.100"
+    allocation_pool_end: "192.168.23.200"
+    cidr: "192.168.23.0/24"
+    enable_dhcp: false
+    gateway_ip: "192.168.23.254"
+    name: provider
+    network_name: provider
+    project: admin
+    region_name: RegionOne
+  become: false
