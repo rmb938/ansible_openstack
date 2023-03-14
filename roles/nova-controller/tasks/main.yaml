@@ -130,3 +130,33 @@
     - nova-scheduler
     - nova-conductor
     - nova-novncproxy
+
+- name: CREATE FLAVOR c1-standard-2
+  openstack.cloud.compute_flavor:
+    cloud: admin
+    name: c1-standard-2
+    ram: 4096
+    vcpus: 2
+    region_name: RegionOne
+    state: present
+  become: false
+
+- name: CREATE FLAVOR c1-standard-4
+  openstack.cloud.compute_flavor:
+    cloud: admin
+    name: c1-standard-4
+    ram: 8192
+    vcpus: 4
+    region_name: RegionOne
+    state: present
+  become: false
+
+- name: CREATE FLAVOR c1-standard-8
+  openstack.cloud.compute_flavor:
+    cloud: admin
+    name: c1-standard-8
+    ram: 16384
+    vcpus: 8
+    region_name: RegionOne
+    state: present
+  become: false
