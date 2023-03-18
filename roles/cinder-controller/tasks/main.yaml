@@ -76,6 +76,12 @@
       - cinder-scheduler
     state: present
 
+- name: ADD LOCAL CINDER USER TO OPENSTACK SERVICES GROUP
+  user:
+    name: cinder
+    groups: openstack-services
+    append: yes
+
 - name: CINDER CONFIGURATION
   ansible.builtin.template:
     src: ./etc/cinder/cinder.conf

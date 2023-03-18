@@ -1,3 +1,11 @@
+- name: Mount Glance NFS Images
+  ansible.posix.mount:
+    src: freenas.rmb938.me:/mnt/tank/vms/images
+    path: /var/lib/glance/images
+    opts: hard,sync,noacl,noatime,nodiratime,noac,vers=4.2
+    state: mounted
+    fstype: nfs
+
 - name: Create glance database
   community.mysql.mysql_db:
     name: glance
@@ -75,6 +83,12 @@
       - glance
     state: present
 
+- name: ADD LOCAL GLANCE USER TO OPENSTACK SERVICES GROUP
+  user:
+    name: glance
+    groups: openstack-services
+    append: yes
+
 - name: GLANCE CONFIGURATION
   ansible.builtin.template:
     src: ./etc/glance/glance-api.conf
@@ -108,14 +122,16 @@
 # Fix for https://bugs.launchpad.net/glance-store/+bug/2000584
 # Telling cinder to not store sparse files nfs_sparsed_volumes=False does not work
 # so this is the only way until that bug is fixed
-- name: PATCH GLANCE CINDER TO CREATE IMAGES CORRECTLY
-  ansible.posix.patch:
-    src: ./usr/lib/python3/dist-packages/glance_store/_drivers/cinder.py.patch
-    dest: /usr/lib/python3/dist-packages/glance_store/_drivers/cinder.py
-  register: glance_cinder_patch
+# TODO: no longer using glance cinder store so we don't need this anymore
+#  keeping just for reference
+# - name: PATCH GLANCE CINDER TO CREATE IMAGES CORRECTLY
+#   ansible.posix.patch:
+#     src: ./usr/lib/python3/dist-packages/glance_store/_drivers/cinder.py.patch
+#     dest: /usr/lib/python3/dist-packages/glance_store/_drivers/cinder.py
+#   register: glance_cinder_patch
 
 - name: Restart Glance API for configuration change
   ansible.builtin.systemd:
     name: glance-api
     state: restarted
-  when: glance_cinder_patch.changed or glance_configuration.changed or glance_rootwrap_configuration.changed
+  when: glance_configuration.changed or glance_rootwrap_configuration.changed

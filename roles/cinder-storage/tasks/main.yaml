@@ -4,6 +4,12 @@
       - cinder-volume
     state: present
 
+- name: ADD LOCAL CINDER USER TO OPENSTACK SERVICES GROUP
+  user:
+    name: cinder
+    groups: openstack-services
+    append: yes
+
 - name: CINDER VOLUME SYSTEMD OVERRIDE DIRECTORY
   ansible.builtin.file:
     path: /etc/systemd/system/cinder-volume.service.d

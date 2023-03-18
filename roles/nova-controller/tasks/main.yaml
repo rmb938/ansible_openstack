@@ -131,6 +131,12 @@
     - nova-conductor
     - nova-novncproxy
 
+- name: ADD LOCAL NOVA USER TO OPENSTACK SERVICES GROUP
+  user:
+    name: nova
+    groups: openstack-services
+    append: yes
+
 - name: CREATE FLAVOR c1-standard-2
   openstack.cloud.compute_flavor:
     cloud: admin

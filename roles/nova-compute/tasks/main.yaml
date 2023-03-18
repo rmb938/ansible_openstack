@@ -4,6 +4,27 @@
       - nova-compute
     state: present
 
+- name: ADD LOCAL NOVA USER TO OPENSTACK SERVICES GROUP
+  user:
+    name: nova
+    groups: openstack-services
+    append: yes
+
+- name: LIBVIRT QEMU CONFIGURATION
+  ansible.builtin.template:
+    src: ./etc/libvirt/qemu.conf
+    dest: /etc/libvirt/qemu.conf
+    owner: root
+    group: root
+    mode: 0600
+  register: libvirt_qemu_configuration
+
+- name: Restart libvirtd for configuration change
+  ansible.builtin.systemd:
+    name: libvirtd
+    state: restarted
+  when: libvirt_qemu_configuration.changed
+
 - name: NOVA CONFIGURATION
   ansible.builtin.template:
     src: ./etc/nova/nova.conf

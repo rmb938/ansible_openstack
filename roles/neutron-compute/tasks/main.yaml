@@ -5,7 +5,7 @@
       - ovn-common
     state: present
 
-- name: OVN SET REMOVE DATABASE
+- name: OVN SET REMOTE DATABASE
   command: "/usr/bin/ovs-vsctl set open . external-ids:ovn-remote=tcp:{{ hostvars[openstack_neutron_host]['ansible_tailscale0']['ipv4']['address'] }}:6642"
   changed_when: false
 
@@ -21,7 +21,7 @@
   command: "/usr/bin/ovs-vsctl set open . external-ids:ovn-cms-options=enable-chassis-as-gw"
   changed_when: false
 
-- name: OVS create maanger
+- name: OVS create manager
   command: "/usr/bin/ovs-vsctl --id @manager create Manager target='ptcp\\:6640\\:127.0.0.1' -- add Open_vSwitch . manager_options @manager"
   changed_when: false
   failed_when: false

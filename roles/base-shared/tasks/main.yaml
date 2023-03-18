@@ -1,3 +1,9 @@
+- name: CREATE OPENSTACK SERVICES GROUP
+  ansible.builtin.group:
+    name: openstack-services
+    state: present
+    gid: 64100
+
 - name: INSTALL UTILS UBUNTU
   ansible.builtin.package:
     name:
