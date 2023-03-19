@@ -14,9 +14,11 @@ This ansible playbook is specific to my Home Lab and makes the following assumpt
   * This node has dual 10Gb NICs configured in a a LACP bond
     * Due to using NFS this was chosen as NFS does not support multipath networking
       * NFS v4.1 supports multipath but it's not wide spread enough
-* The Openstack Controllers run on Raspberry Pis
+* The Openstack Controllers run on Raspberry Pis & FreeBSD Jails
   * The Pis are imaged using the openstack-node image found here https://github.com/rmb938/rpi-images
     * The image is based off of Ubuntu Server https://ubuntu.com/raspberry-pi
+  * FreeBSD Jails run on TrueNAS 13
+    * Mostly so Glance & Cinder Volume can be close to the storage for faster performance
 * The Openstack Compute Nodes are commodity compute hardware
   * These nodes have a default Ubuntu 22.04 Server installation
   * These nodes are "upgraded" with a Chelsio T520-CR NIC configured in a LACP bond
