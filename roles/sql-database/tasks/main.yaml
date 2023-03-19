@@ -80,6 +80,7 @@
     login_unix_socket: /var/run/mysql/mysql.sock
   with_items:
     - unix_socket
+    - localhost
 
 - name: INSTALL MYSQLD EXPORTER
   ansible.builtin.package:

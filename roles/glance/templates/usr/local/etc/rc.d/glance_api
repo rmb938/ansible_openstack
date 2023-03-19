@@ -1,0 +1,54 @@
+#!/bin/sh
+
+# PROVIDE: glance_api
+# REQUIRE: LOGIN
+# KEYWORD: shutdown
+#
+# Add the following lines to /etc/rc.conf.local or /etc/rc.conf
+# to enable this service:
+#
+# glance_api_enable (bool):          Set to NO by default.
+#               Set it to YES to enable glance_api_enable.
+# glance_api_user (string):          Set user that glance_api will run under
+#               Default is "glance".
+# glance_api_group (string):         Set group that glance_api will run under
+#               Default is "glance".
+# glance_api_args (string):          Set extra arguments to pass to glance_api
+#               Default is "".
+
+. /etc/rc.subr
+
+name=glance_api
+rcvar=glance_api_enable
+
+load_rc_config $name
+
+: ${glance_api_enable:="NO"}
+: ${glance_api_user:="glance"}
+: ${glance_api_group:="glance"}
+: ${glance_api_args:=""}
+
+
+pidfile=/var/run/glance_api.pid
+command="/usr/sbin/daemon"
+procname="/usr/local/bin/python3.9"
+command_args="-f -p ${pidfile} -T ${name} \
+    /usr/bin/env /usr/local/bin/glance-api \
+    --config-file /usr/local/etc/glance/glance-api.conf \
+    --config-dir /usr/local/etc/glance \
+    ${glance_api_args}"
+
+start_precmd=glance_api_startprecmd
+
+glance_api_startprecmd()
+{
+    if [ ! -e ${pidfile} ]; then
+        install \
+            -o ${glance_api_user} \
+            -g ${glance_api_group} \
+            /dev/null ${pidfile};
+    fi
+}
+
+load_rc_config $name
+run_rc_command "$1"

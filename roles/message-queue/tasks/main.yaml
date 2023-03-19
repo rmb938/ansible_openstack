@@ -1,14 +1,24 @@
 - name: INSTALL MESSAGE QUEUE
   ansible.builtin.package:
     name:
-      - rabbitmq-server
+      - net/rabbitmq
     state: present
 
 - name: ENABLE & START rabbitmq SERVICE
-  ansible.builtin.systemd:
-    name: rabbitmq-server
+  ansible.builtin.service:
+    name: rabbitmq
     state: started
     enabled: true
+
+# This is so ansible can run rabbitmq commands
+- name: COPY ERLANG COOKIE TO ROOT
+  ansible.builtin.copy:
+    remote_src: true
+    src: /var/db/rabbitmq/.erlang.cookie
+    dest: /root/.erlang.cookie
+    owner: root
+    group: wheel
+    mode: "0400"
 
 - name: REMOVE GUEST USER
   community.rabbitmq.rabbitmq_user:

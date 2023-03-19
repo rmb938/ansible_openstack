@@ -1,11 +1,3 @@
-- name: Mount Glance NFS Images
-  ansible.posix.mount:
-    src: freenas.rmb938.me:/mnt/tank/vms/images
-    path: /var/lib/glance/images
-    opts: hard,sync,noacl,noatime,nodiratime,noac,vers=4.2
-    state: mounted
-    fstype: nfs
-
 - name: Create glance database
   community.mysql.mysql_db:
     name: glance
@@ -77,61 +69,83 @@
     - internal
     - admin
 
-- name: INSTALL glance
-  ansible.builtin.package:
-    name:
-      - glance
-    state: present
-
-- name: ADD LOCAL GLANCE USER TO OPENSTACK SERVICES GROUP
-  user:
+- name: GLANCE USER
+  ansible.builtin.user:
     name: glance
+    create_home: true
+    home: /var/lib/glance
+    shell: /usr/sbin/nologin
+    system: true
+    uid: 64062
     groups: openstack-services
-    append: yes
+
+- name: INSTALL GLANCE
+  ansible.builtin.pip:
+    name:
+      - "git+https://opendev.org/openstack/glance@stable/zed#egg=glance"
+      - cryptography
+      - keystonemiddleware
+      - os-brick
+      - oslo.rootwrap
+      - osprofiler
+      - PyMySQL
+      - pymemcache
+      - python-cinderclient
+      - python-glanceclient
+      - python-keystoneclient
+      - python-memcached
+      - python-swiftclient
+      - warlock
+    extra_args: >-
+      --constraint https://opendev.org/openstack/requirements/raw/branch/stable/zed/upper-constraints.txt
+
+- name: CHOWN GLANCE CONFIG
+  ansible.builtin.file:
+    path: /usr/local/etc/glance
+    recurse: true
+    state: directory
+    owner: root
+    group: glance
+    mode: "0750"
 
 - name: GLANCE CONFIGURATION
   ansible.builtin.template:
-    src: ./etc/glance/glance-api.conf
-    dest: /etc/glance/glance-api.conf
+    src: ./usr/local/etc/glance/glance-api.conf
+    dest: /usr/local/etc/glance/glance-api.conf
     owner: root
     group: glance
-    mode: 0640
+    mode: "0750"
   register: glance_configuration
 
-- name: GLANCE ROOT WRAP CONFIGURATION
-  ansible.builtin.template:
-    src: ./etc/glance/rootwrap.conf
-    dest: /etc/glance/rootwrap.conf
-    owner: root
-    group: glance
-    mode: 0640
-  register: glance_rootwrap_configuration
-
 - name: Perform a Glance DB sync
-  command: "/usr/bin/glance-manage db_sync"
+  command: "/usr/local/bin/glance-manage --config-file /usr/local/etc/glance/glance-api.conf --config-dir /usr/local/etc/glance db_sync"
   become: true
   become_user: glance
   changed_when: false
 
 - name: Load glance metadata definitions
-  command: "/usr/bin/glance-manage db_load_metadefs /etc/glance/metadefs"
+  command: "/usr/local/bin/glance-manage --config-file /usr/local/etc/glance/glance-api.conf --config-dir /usr/local/etc/glance db_load_metadefs /usr/local/etc/glance/metadefs"
   become: true
   become_user: glance
   changed_when: false
 
-# Fix for https://bugs.launchpad.net/glance-store/+bug/2000584
-# Telling cinder to not store sparse files nfs_sparsed_volumes=False does not work
-# so this is the only way until that bug is fixed
-# TODO: no longer using glance cinder store so we don't need this anymore
-#  keeping just for reference
-# - name: PATCH GLANCE CINDER TO CREATE IMAGES CORRECTLY
-#   ansible.posix.patch:
-#     src: ./usr/lib/python3/dist-packages/glance_store/_drivers/cinder.py.patch
-#     dest: /usr/lib/python3/dist-packages/glance_store/_drivers/cinder.py
-#   register: glance_cinder_patch
+- name: GLANCE RC.D
+  ansible.builtin.template:
+    src: ./usr/local/etc/rc.d/glance_api
+    dest: /usr/local/etc/rc.d/glance_api
+    owner: root
+    group: wheel
+    mode: "0755"
+  register: glance_rcd
+
+- name: Enable & Start Glance API for configuration change
+  ansible.builtin.service:
+    name: glance_api
+    state: started
+    enabled: true
 
 - name: Restart Glance API for configuration change
-  ansible.builtin.systemd:
-    name: glance-api
+  ansible.builtin.service:
+    name: glance_api
     state: restarted
-  when: glance_configuration.changed or glance_rootwrap_configuration.changed
+  when: glance_configuration.changed

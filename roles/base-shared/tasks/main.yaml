@@ -12,6 +12,7 @@
       - acl
       - net-tools
       - curl
+      - git
     state: present
   when: ansible_distribution == 'Ubuntu'
 
@@ -21,6 +22,8 @@
       - sysutils/htop
       - sysutils/py-glances
       - ftp/curl
+      - devel/git
+      - lang/rust
     state: present
   when: ansible_distribution == 'FreeBSD'
 
@@ -33,14 +36,6 @@
 - name: UBUNTU INSTALL OPENSTACK REPO
   ansible.builtin.apt_repository:
     repo: deb http://ubuntu-cloud.archive.canonical.com/ubuntu jammy-updates/zed main
-  when: ansible_distribution == 'Ubuntu'
-
-- name: INSTALL OPENSTACK CLIENT
-  ansible.builtin.package:
-    name:
-      - python3-openstackclient
-      - python3-osc-placement
-      - python3-octaviaclient
   when: ansible_distribution == 'Ubuntu'
 
 - name: INSTALL PROMETHEUS EXPORTERS UBUNTU

@@ -21,3 +21,25 @@
     mode: 0600
     owner: "{{ ansible_ssh_user }}"
     group: "{{ ansible_ssh_user }}"
+
+- name: INSTALL OPENSTACK CLIENT Ubuntu
+  ansible.builtin.package:
+    name:
+      - python3-openstackclient
+      - python3-osc-placement
+      - python3-octaviaclient
+  when: ansible_distribution == 'Ubuntu'
+
+- name: INSTALL OPENSTACK CLIENT FREEBSD
+  ansible.builtin.package:
+    name:
+      - net/py-python-openstackclient
+  when: ansible_distribution == 'FreeBSD'
+
+# FreeBSD doesn't have packages for these so install manually
+- name: INSTALL OSC CLIENT PLUGINS FREEBSD
+  ansible.builtin.pip:
+    name:
+      - osc-placement==4.0.0
+      - python-octaviaclient==3.1.0
+  when: ansible_distribution == 'FreeBSD'

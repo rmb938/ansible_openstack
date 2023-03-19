@@ -43,7 +43,8 @@ This ansible playbook is specific to my Home Lab and makes the following assumpt
         └── eth1
     ```
 * Network Ranges are as follows:
-  * Storage: 192.168.23.40 - 192.168.23.49
+  * FreeBSD: 192.168.23.20 - 192.168.23.29
+  * Storage: 192.168.23.40
   * Raspberry Pis: 192.168.23.70 - 192.168.23.79
   * Compute Nodes: 192.168.23.50 - 192.168.23.59
   * Provider Network: 192.168.23.100 - 192.168.23.200
@@ -148,6 +149,44 @@ This ansible playbook is specific to my Home Lab and makes the following assumpt
     }
     ```
 
+## Roles
+
+* Base Controller
+  * Base configuration for all Openstack Controller Nodes
+    * Excluding SQL & Message Queue
+* Base Compute
+  * Base configuration for all Openstack Compute Nodes
+* Base Shares
+  * Base configuration for all Openstack Nodes
+* SQL Database
+  * Install & Configure MariaDB on a FreeBSD Jail
+* Message Queue
+  * Install & Configure RabbitMQ on Ubuntu
+* Memcache
+  * Install & Configure Memcache on Ubuntu
+* Keystone
+  * Install & Configure Keystore on Ubuntu
+* Cinder Controller
+  * Install & Configure Cinder Controller on Ubuntu
+* Cinder Storage
+  * Install & Configure Cinder Storage on Ubuntu
+* Glance
+  * Install & Configure Glance on Ubuntu
+* Placement
+  * Install & Configure Placement on Ubuntu
+* Nova Controller
+  * Install & Configure Nova Controller on Ubuntu
+* Nova Compute
+  * Install & Configure Nova Compute on Ubuntu
+* Neutron Controller
+  * Install & Configure Neutron Controller with OVN on Ubuntu
+* Neutron Compute
+  * Install & Configure Neutron Compute with OVN on Ubuntu
+* Octavia Controller
+  * Install & Configure Octavia Controller with OVN on Ubuntu
+* Dashboard
+  * Install & Configure Dashboard on Ubuntu
+
 ## Requirements
 
 * Tailscale
@@ -167,25 +206,34 @@ This ansible playbook is specific to my Home Lab and makes the following assumpt
     ```
   * FreeBSD
     ```bash
-    pkg install tailscale
+    mkdir -p /usr/local/etc/pkg/repos
+    cat > /usr/local/etc/pkg/repos/FreeBSD.conf << EOF
+    FreeBSD: {
+      url: "pkg+http://pkg.FreeBSD.org/\${ABI}/latest",
+      mirror_type: "srv",
+      signature_type: "fingerprints",
+      fingerprints: "/usr/share/keys/pkg",
+      enabled: yes
+    }
+    EOF
+    pkg install -y security/tailscale
     sysrc tailscaled_enable="YES"
     sysrc tailscaled_syslog_output_enable="YES"
     service tailscaled start
     tailscale up --ssh
     ```
-* Ansible User created and setup with sudo
+* Ansible Dependencies
   * Ubuntu
     ```bash
     useradd ansible
     mkdir /home/ansible
     chown ansible:ansible /home/ansible/
-    echo "ansible ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/ansible
+    echo "ansible ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/01_ansible
     ```
   * FreeBSD
     ```bash
-    pkg install sudo
-    echo '%wheel ALL=(ALL) ALL' > /usr/local/etc/sudoers.d/allow-wheel-user-login
-    pkg install lang/python3
+    pkg install -y security/sudo lang/python devel/py-pip
     pw user add -n ansible -d /home/ansible -m -s /bin/sh
-    echo "ansible ALL=(ALL) NOPASSWD: ALL" > /usr/local/etc/sudoers.d/ansible
+    echo '%wheel ALL=(ALL) ALL' > /usr/local/etc/sudoers.d/00_wheel
+    echo "ansible ALL=(ALL) NOPASSWD: ALL" > /usr/local/etc/sudoers.d/01_ansible
     ```
