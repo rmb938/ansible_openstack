@@ -53,7 +53,7 @@ This ansible playbook is specific to my Home Lab and makes the following assumpt
     * Openstack will be configured with **no** DHCP server as we don't want it conflicting with the management LAN
 * All hosts have Tailscale installed and are defined in the `hosts` file with their Tailscale hostname i.e `pi1.tailnet-047c.ts.net`
   * TODO: All services have TLS configured via Tailscale certificates
-  * TODO: All services are configured to only be accessable via the Tailscale network and using Tailscale ACLs for access control
+  * All services are configured to only be accessable via the Tailscale network and using Tailscale ACLs for access control
     * All Openstack Tailscale nodes have the `servers` and `openstackNode` tags.
     ```json
     {
