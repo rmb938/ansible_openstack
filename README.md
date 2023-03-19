@@ -161,7 +161,7 @@ This ansible playbook is specific to my Home Lab and makes the following assumpt
 * SQL Database
   * Install & Configure MariaDB on a FreeBSD Jail
 * Message Queue
-  * Install & Configure RabbitMQ on Ubuntu
+  * Install & Configure RabbitMQ on a FreeBSD Jail
 * Memcache
   * Install & Configure Memcache on Ubuntu
 * Keystone
@@ -171,7 +171,7 @@ This ansible playbook is specific to my Home Lab and makes the following assumpt
 * Cinder Storage
   * Install & Configure Cinder Storage on Ubuntu
 * Glance
-  * Install & Configure Glance on Ubuntu
+  * Install & Configure Glance on a FreeBSD Jail
 * Placement
   * Install & Configure Placement on Ubuntu
 * Nova Controller
