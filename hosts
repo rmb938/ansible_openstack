@@ -11,28 +11,28 @@ pi1.tailnet-047c.ts.net
 pi1.tailnet-047c.ts.net
 
 [cinder_controllers]
-# pi2.tailnet-047c.ts.net
+pi2.tailnet-047c.ts.net
 
 [cinder_storage]
-# pi2.tailnet-047c.ts.net
+pi2.tailnet-047c.ts.net
 
 [glance_controllers]
 openstack-glance.tailnet-047c.ts.net
 
 [placement_controllers]
-# pi2.tailnet-047c.ts.net
+pi2.tailnet-047c.ts.net
 
 [nova_controllers]
-# pi3.tailnet-047c.ts.net
+pi3.tailnet-047c.ts.net
 
 [neutron_controllers]
-# pi3.tailnet-047c.ts.net
+pi3.tailnet-047c.ts.net
 
 [octavia_controllers]
-# pi3.tailnet-047c.ts.net
+pi3.tailnet-047c.ts.net
 
 [dashboard]
-# pi3.tailnet-047c.ts.net
+pi3.tailnet-047c.ts.net
 
 [controllers:children]
 memcache
@@ -45,5 +45,5 @@ neutron_controllers
 dashboard
 
 [compute]
-# sora.tailnet-047c.ts.net
+sora.tailnet-047c.ts.net
 # riku.tailnet-047c.ts.net
