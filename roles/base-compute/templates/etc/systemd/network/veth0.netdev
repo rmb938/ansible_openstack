@@ -1,7 +1,0 @@
-# {{ ansible_managed }}
-[NetDev]
-Name=veth0
-Kind=veth
-
-[Peer]
-Name=veth0-mgmt
