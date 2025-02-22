@@ -1,0 +1,5 @@
+{{- with pkiCert "pki_openstack_postgres_intermediate/issue/user-keystone" "common_name=keystone" -}}
+{{ .Cert }}{{ .CA }}{{ .CAChain }}{{ .Key }}
+{{ .Key | writeToFile "/etc/keystone/postgres-user-keystone.key" "" "" "0600" }}
+{{ (printf "%s%s" .Cert (.CAChain | join "")) | writeToFile "/etc/keystone/postgres-user-keystone.crt" "" "" "0644" }}
+{{- end -}}

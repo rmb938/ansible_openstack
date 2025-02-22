@@ -1,0 +1,56 @@
+# {{ ansible_managed }}
+
+[Unit]
+Description="consul-template-keystone"
+Requires=network-online.target
+
+# we need the main vault agent
+Wants=consul-template-consul.service
+
+After=network-online.target
+
+# we need the main vault agent
+After=consul-template-consul.service
+
+ConditionFileNotEmpty=/etc/consul-template/consul-template-keystone.hcl
+StartLimitIntervalSec=60
+StartLimitBurst=3
+
+[Service]
+Type=notify
+
+# override since we want this agent to run as consul user & group
+User=keystone
+Group=keystone
+
+ProtectSystem=full
+ProtectHome=read-only
+PrivateTmp=yes
+
+# allow writing to /etc/keystone/
+ReadWritePaths=/etc/keystone/
+
+# override to allow agent to sudo
+PrivateDevices=no
+
+SecureBits=keep-caps
+
+# override to allow agent to sudo
+CapabilityBoundingSet=CAP_SYSLOG CAP_SYS_RESOURCE CAP_SETGID CAP_SETUID CAP_AUDIT_WRITE
+
+# override to allow agent to sudo
+NoNewPrivileges=no
+
+ExecStart=/usr/bin/consul-template -config=/etc/consul-template/consul-template-keystone.hcl
+ExecReload=/bin/kill --signal HUP $MAINPID
+KillMode=process
+KillSignal=SIGINT
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=30
+LimitNOFILE=65536
+LimitMEMLOCK=infinity
+LimitCORE=0
+
+[Install]
+WantedBy=multi-user.target

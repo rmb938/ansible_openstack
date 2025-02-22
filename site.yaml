@@ -11,3 +11,10 @@
   become: true
   roles:
     - base-controller
+
+- name: Keystone
+  hosts: keystone
+  remote_user: ubuntu
+  become: true
+  roles:
+    - keystone

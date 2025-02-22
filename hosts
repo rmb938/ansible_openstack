@@ -1,0 +1,7 @@
+[keystone]
+openstack-keystone-1.us-homelab1.hl.rmb938.me
+openstack-keystone-2.us-homelab1.hl.rmb938.me
+openstack-keystone-3.us-homelab1.hl.rmb938.me
+
+[controllers:children]
+keystone
