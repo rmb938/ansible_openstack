@@ -1,4 +1,19 @@
 ---
+- name: Keystone Service Consul Config
+  ansible.builtin.template:
+    src: etc/consul.d/50_keystone.service.hcl
+    dest: /etc/consul.d/50_50_keystone.service.hcl
+    mode: "0644"
+    owner: consul
+    group: consul
+  register: keystone_service_consul_config
+
+- name: Restart Consul # noqa: no-handler
+  ansible.builtin.systemd_service:
+    name: consul
+    state: restarted
+  when: keystone_service_consul_config.changed
+
 - name: INSTALL KEYSTONE
   ansible.builtin.package:
     name:
@@ -83,6 +98,76 @@
     consul_template_keystone_templates_files.changed
 # End Consul Template Keystone
 
+- name: Remove Listen 80
+  ansible.builtin.lineinfile:
+    path: /etc/apache2/ports.conf
+    regexp: "^Listen 80$"
+    state: absent
+  register: apache2_ports
+
+- name: Enable Apache2 SSL Mod
+  ansible.builtin.command:
+    cmd: /usr/sbin/a2enmod ssl
+    creates: /etc/apache2/mods-enabled/ssl.load
+  register: apache2_ssl_mod
+
+- name: Enable Apache2 Headers Mod
+  ansible.builtin.command:
+    cmd: /usr/sbin/a2enmod headers
+    creates: /etc/apache2/mods-enabled/headers.load
+  register: apache2_headers_mod
+
+- name: RESTART APACHE2 # noqa: no-handler
+  ansible.builtin.systemd_service:
+    name: apache2
+    state: restarted
+  when: apache2_ports.changed or
+    apache2_ssl_mod.changed or
+    apache2_headers_mod.changed
+
+- name: Create Apache2 Certificates
+  ansible.builtin.command: >-
+    step ca certificate {{ ansible_fqdn }}
+    /etc/ssl/private/apache2.crt
+    /etc/ssl/private/apache2.key
+    --ca-url https://step-ca.us-homelab1.hl.rmb938.me:8443
+    --root /usr/local/share/ca-certificates/smallstep-homelab-prod.crt
+  args:
+    creates: "/etc/ssl/private/apache2.crt"
+
+- name: Own Apache2 certificates
+  ansible.builtin.file:
+    path: /etc/ssl/private/{{ item }}
+    owner: root
+    group: root
+    mode: "0600"
+  with_items:
+    - apache2.crt
+    - apache2.key
+
+- name: Cron to renew Apache2 certificates
+  ansible.builtin.cron:
+    name: "renew apache2 certificates"
+    special_time: "hourly"
+    # Rekey needs to happen against the CA, RA's don't support rekey
+    # https://smallstep.com/docs/step-ca/registration-authority-ra-mode/#stepcas-limitations
+    job: >-
+      step ca rekey /etc/ssl/private/apache2.crt
+      /etc/ssl/private/apache2.key
+      --ca-url https://step-ca.us-homelab1.hl.rmb938.me
+      --root /usr/local/share/ca-certificates/smallstep-homelab-prod.crt
+      --force --expires-in 720h --exec "systemctl try-reload-or-restart patroni"
+    state: present
+
+- name: CONFIGURE APACHE2
+  ansible.builtin.template:
+    src: etc/apache2/sites-available/keystone.conf
+    dest: /etc/apache2/sites-available/keystone.conf
+    mode: "0644"
+    owner: keystone
+    group: keystone
+  register: apache2_config
+
 - name: CONFIGURE KEYSTONE
   ansible.builtin.template:
     src: etc/keystone/keystone.conf
@@ -96,7 +181,8 @@
   ansible.builtin.systemd_service:
     name: apache2
     state: restarted
-  when: keystone_config.changed
+  when: apache2_config.changed or
+    keystone_config.changed
 
 - name: FERNET SETUP
   ansible.builtin.command:
