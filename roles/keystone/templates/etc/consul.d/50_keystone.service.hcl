@@ -17,6 +17,6 @@ services {
 
   meta {
     haproxy_t2 = "true"
-    haproxy_t2_check_uri = "/heathcheck"
+    haproxy_t2_check_uri = "/healthcheck"
   }
 }
