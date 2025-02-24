@@ -1,0 +1,16 @@
+#! /usr/bin/python3
+
+import os
+import threading
+
+from keystone.server.wsgi import initialize_public_application
+
+os.environ["OS_KEYSTONE_CONFIG_DIR"] = "/etc/keystone"
+os.environ["OS_KEYSTONE_CONFIG_FILES"] = "keystone-internal.conf"
+
+application = None
+app_lock = threading.Lock()
+
+with app_lock:
+    if application is None:
+        application = initialize_public_application()

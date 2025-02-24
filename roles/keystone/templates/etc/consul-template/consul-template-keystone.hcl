@@ -38,3 +38,25 @@ template {
     command = "sudo systemctl reload-or-restart apache2 || true"
   }
 }
+
+# Keystone Internal CA
+template {
+  source = "/etc/consul-template/templates/keystone/keystone-internal-ca.crt.ctmpl"
+  destination = "/etc/keystone/keystone-internal-ca.crt"
+  create_dest_dirs = false
+  perms = "0644"
+  exec {
+    command = "sudo systemctl reload-or-restart apache2 || true"
+  }
+}
+
+# Keystone Internal Cert
+template {
+  source = "/etc/consul-template/templates/keystone/keystone-internal.ctmpl"
+  destination = "/etc/keystone/keystone-internal.rendered"
+  create_dest_dirs = false
+  perms = "0600"
+  exec {
+    command = "sudo systemctl reload-or-restart apache2 || true"
+  }
+}
