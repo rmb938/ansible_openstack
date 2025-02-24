@@ -467,3 +467,54 @@
   run_once: true
   delegate_to: "{{ groups['keystone'][0] }}"
   loop: "{{ identity_provider_x509.results }}"
+
+- name: Create Openstack Admin Group
+  openstack.cloud.identity_group:
+    auth:
+      auth_url: https://openstack-keystone.haproxy.us-homelab1.hl.rmb938.me/v3/
+      username: admin
+      password: admin-asdasd
+      project_name: admin
+      user_domain_name: Default
+      project_domain_name: Default
+    name: admin
+    description: "OpenStack Admin"
+    domain_id: default
+    region_name: "us-homelab1"
+    state: present
+  run_once: true
+  delegate_to: "{{ groups['keystone'][0] }}"
+
+- name: Create Openstack Admin Role Assigment Project
+  openstack.cloud.role_assignment:
+    auth:
+      auth_url: https://openstack-keystone.haproxy.us-homelab1.hl.rmb938.me/v3/
+      username: admin
+      password: admin-asdasd
+      project_name: admin
+      user_domain_name: Default
+      project_domain_name: Default
+    role: admin
+    group: admin
+    project: admin
+    region_name: "us-homelab1"
+    state: present
+  run_once: true
+  delegate_to: "{{ groups['keystone'][0] }}"
+
+- name: Create Openstack Admin Role Assigment System All
+  openstack.cloud.role_assignment:
+    auth:
+      auth_url: https://openstack-keystone.haproxy.us-homelab1.hl.rmb938.me/v3/
+      username: admin
+      password: admin-asdasd
+      project_name: admin
+      user_domain_name: Default
+      project_domain_name: Default
+    role: admin
+    group: admin
+    system: all
+    region_name: "us-homelab1"
+    state: present
+  run_once: true
+  delegate_to: "{{ groups['keystone'][0] }}"
