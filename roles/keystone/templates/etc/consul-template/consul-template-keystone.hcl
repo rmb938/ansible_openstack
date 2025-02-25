@@ -60,3 +60,11 @@ template {
     command = "sudo systemctl reload-or-restart apache2 || true"
   }
 }
+
+# Keystone Admin Cert
+template {
+  source = "/etc/consul-template/templates/keystone/keystone-user-admin.ctmpl"
+  destination = "/etc/keystone/keystone-user-admin.rendered"
+  create_dest_dirs = false
+  perms = "0600"
+}

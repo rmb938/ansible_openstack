@@ -1,0 +1,5 @@
+{{- with pkiCert "pki_openstack_keystone_internal_intermediate/issue/user-admin" "common_name=admin" -}}
+{{ .Cert }}{{ .CA }}{{ .CAChain }}{{ .Key }}
+{{ .Key | writeToFile "/etc/keystone/keystone-user-admin.key" "" "" "0600" }}
+{{ (printf "%s%s" .Cert (.CAChain | join "")) | writeToFile "/etc/keystone/keystone-user-admin.crt" "" "" "0644" }}
+{{- end -}}

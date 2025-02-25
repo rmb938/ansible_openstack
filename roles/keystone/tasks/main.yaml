@@ -442,11 +442,10 @@
           - group:
               domain:
                 name: Default
-              name: '{0}'
+              name: '{1}'
         remote:
           - type: SSL_CLIENT_S_DN_CN
-          # TODO: need to test this, don't have a cert with OU currently
-          # - type: SSL_CLIENT_S_DN_OU
+          - type: SSL_CLIENT_S_DN_OU
   run_once: true
   delegate_to: "{{ groups['keystone'][0] }}"
   register: identity_mapping_x509
