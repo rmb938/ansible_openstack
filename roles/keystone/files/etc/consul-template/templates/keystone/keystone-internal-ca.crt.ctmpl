@@ -1,3 +1,0 @@
-{{ with secret "pki_openstack_keystone_internal_root/cert/ca" }}
-{{ .Data.certificate }}
-{{ end }}

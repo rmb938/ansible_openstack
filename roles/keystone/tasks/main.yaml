@@ -21,20 +21,6 @@
       - python3-psycopg
     state: present
 
-- name: Read PKI Data from Vault
-  community.hashi_vault.vault_read:
-    url: http://127.0.0.1:8100
-    path: pki_openstack_keystone_internal_intermediate/issuer/openstack-keystone-internal-intermediate-{{ item }}/json
-    auth_method: none
-  loop: "{{ range(1) | list }}"
-  register: keystone_internal_pki_certs
-
-- name: Cert Info
-  community.crypto.x509_certificate_info:
-    content: "{{ item.data.data.certificate }}"
-  loop: "{{ keystone_internal_pki_certs.results }}"
-  register: keystone_internal_pki_cert_info
-
 # Start Consul Template Keystone
 - name: Add keystone to sudoers
   community.general.sudoers:
@@ -173,14 +159,6 @@
       --force --expires-in 720h --exec "systemctl try-reload-or-restart patroni"
     state: present
 
-- name: Place keystone-wsgi-internal
-  ansible.builtin.copy:
-    src: "usr/local/bin/keystone-wsgi-internal"
-    dest: "/usr/local/bin/keystone-wsgi-internal"
-    mode: "0755"
-    owner: root
-    group: root
-
 - name: CONFIGURE APACHE2
   ansible.builtin.template:
     src: etc/apache2/sites-available/keystone.conf
@@ -198,27 +176,13 @@
     owner: keystone
     group: keystone
   register: keystone_config
-  vars:
-    is_internal: false
-
-- name: CONFIGURE KEYSTONE Internal
-  ansible.builtin.template:
-    src: etc/keystone/keystone.conf
-    dest: /etc/keystone/keystone-internal.conf
-    mode: "0600"
-    owner: keystone
-    group: keystone
-  register: keystone_internal_config
-  vars:
-    is_internal: true
 
 - name: RESTART APACHE2 # noqa: no-handler
   ansible.builtin.systemd_service:
     name: apache2
     state: restarted
   when: apache2_config.changed or
-    keystone_config.changed or
-    keystone_internal_config.changed
+    keystone_config.changed
 
 - name: FERNET SETUP
   ansible.builtin.command:
@@ -376,8 +340,8 @@
     # TODO: randomize this password
     cmd: >-
       /usr/bin/keystone-manage bootstrap --bootstrap-password admin-asdasd
-      --bootstrap-admin-url https://openstack-keystone.service.consul:5200/v3/
-      --bootstrap-internal-url https://openstack-keystone.service.consul:5200/v3/
+      --bootstrap-admin-url https://openstack-keystone.haproxy.us-homelab1.hl.rmb938.me/v3/
+      --bootstrap-internal-url https://openstack-keystone.haproxy.us-homelab1.hl.rmb938.me/v3/
       --bootstrap-public-url https://openstack-keystone.haproxy.us-homelab1.hl.rmb938.me/v3/
       --bootstrap-region-id us-homelab1
   become: true
@@ -385,135 +349,3 @@
   run_once: true
   delegate_to: "{{ groups['keystone'][0] }}"
   changed_when: false
-
-- name: Create Identity Domain for x509
-  openstack.cloud.identity_domain:
-    auth:
-      auth_url: https://openstack-keystone.haproxy.us-homelab1.hl.rmb938.me/v3/
-      username: admin
-      password: admin-asdasd
-      project_name: admin
-      user_domain_name: Default
-      project_domain_name: Default
-    interface: public
-    name: "Keystone Internal X509"
-    region_name: "us-homelab1"
-    state: present
-  run_once: true
-  delegate_to: "{{ groups['keystone'][0] }}"
-  register: identity_domain_x509
-
-- name: Create Identity Provider for x509
-  openstack.cloud.federation_idp:
-    auth:
-      auth_url: https://openstack-keystone.haproxy.us-homelab1.hl.rmb938.me/v3/
-      username: admin
-      password: admin-asdasd
-      project_name: admin
-      user_domain_name: Default
-      project_domain_name: Default
-    interface: public
-    id: "{{ ('CN=' + item.subject.commonName) | hash('sha256') }}"
-    domain_id: "{{ identity_domain_x509.domain.id }}"
-    description: "Keystone Internal X509 - CN={{ item.subject.commonName }}"
-    enabled: true
-    region_name: "us-homelab1"
-    state: present
-  run_once: true
-  delegate_to: "{{ groups['keystone'][0] }}"
-  loop: "{{ keystone_internal_pki_cert_info.results }}"
-  register: identity_provider_x509
-
-- name: Create Identity Mapping for x509
-  openstack.cloud.federation_mapping:
-    auth:
-      auth_url: https://openstack-keystone.haproxy.us-homelab1.hl.rmb938.me/v3/
-      username: admin
-      password: admin-asdasd
-      project_name: admin
-      user_domain_name: Default
-      project_domain_name: Default
-    id: keystone-internal-x509
-    rules:
-      - local:
-          - user:
-              name: '{0}'
-              type: ephemeral
-          - group:
-              domain:
-                name: Default
-              name: '{1}'
-        remote:
-          - type: SSL_CLIENT_S_DN_CN
-          - type: SSL_CLIENT_S_DN_OU
-  run_once: true
-  delegate_to: "{{ groups['keystone'][0] }}"
-  register: identity_mapping_x509
-
-- name: Create Identity Mapping Protocol for x509
-  openstack.cloud.keystone_federation_protocol:
-    auth:
-      auth_url: https://openstack-keystone.haproxy.us-homelab1.hl.rmb938.me/v3/
-      username: admin
-      password: admin-asdasd
-      project_name: admin
-      user_domain_name: Default
-      project_domain_name: Default
-    id: x509
-    idp: "{{ item.identity_provider.id }}"
-    mapping: "{{ identity_mapping_x509.mapping.id }}"
-    region_name: "us-homelab1"
-  run_once: true
-  delegate_to: "{{ groups['keystone'][0] }}"
-  loop: "{{ identity_provider_x509.results }}"
-
-- name: Create Openstack Admin Group
-  openstack.cloud.identity_group:
-    auth:
-      auth_url: https://openstack-keystone.haproxy.us-homelab1.hl.rmb938.me/v3/
-      username: admin
-      password: admin-asdasd
-      project_name: admin
-      user_domain_name: Default
-      project_domain_name: Default
-    name: admin
-    description: "OpenStack Admin"
-    domain_id: default
-    region_name: "us-homelab1"
-    state: present
-  run_once: true
-  delegate_to: "{{ groups['keystone'][0] }}"
-
-- name: Create Openstack Admin Role Assigment Project
-  openstack.cloud.role_assignment:
-    auth:
-      auth_url: https://openstack-keystone.haproxy.us-homelab1.hl.rmb938.me/v3/
-      username: admin
-      password: admin-asdasd
-      project_name: admin
-      user_domain_name: Default
-      project_domain_name: Default
-    role: admin
-    group: admin
-    project: admin
-    region_name: "us-homelab1"
-    state: present
-  run_once: true
-  delegate_to: "{{ groups['keystone'][0] }}"
-
-- name: Create Openstack Admin Role Assigment System All
-  openstack.cloud.role_assignment:
-    auth:
-      auth_url: https://openstack-keystone.haproxy.us-homelab1.hl.rmb938.me/v3/
-      username: admin
-      password: admin-asdasd
-      project_name: admin
-      user_domain_name: Default
-      project_domain_name: Default
-    role: admin
-    group: admin
-    system: all
-    region_name: "us-homelab1"
-    state: present
-  run_once: true
-  delegate_to: "{{ groups['keystone'][0] }}"

@@ -1,5 +1,0 @@
-{{- with pkiCert "pki_openstack_keystone_internal_intermediate/issue/server" "common_name=openstack-keystone.service.consul" -}}
-{{ .Cert }}{{ .CA }}{{ .CAChain }}{{ .Key }}
-{{ .Key | writeToFile "/etc/keystone/keystone-internal.key" "" "" "0600" }}
-{{ (printf "%s%s" .Cert (.CAChain | join "")) | writeToFile "/etc/keystone/keystone-internal.crt" "" "" "0644" }}
-{{- end -}}
