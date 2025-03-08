@@ -1,4 +1,28 @@
 ---
+- name: Place fluentbit input for keystone
+  ansible.builtin.template:
+    src: etc/fluent-bit-inputs.d/50_keystone.conf
+    dest: /etc/fluent-bit-inputs.d/50_keystone.conf
+    owner: root
+    group: root
+    mode: "0644"
+  register: fluentbit_input_keystone
+
+- name: Place fluentbit filter for keystone
+  ansible.builtin.template:
+    src: etc/fluent-bit-filters.d/50_keystone.conf
+    dest: /etc/fluent-bit-filters.d/50_keystone.conf
+    owner: root
+    group: root
+    mode: "0644"
+  register: fluentbit_filter_keystone
+
+- name: Restart fluentbit # noqa: no-handler
+  ansible.builtin.systemd:
+    name: fluent-bit
+    state: restarted
+  when: fluentbit_input_keystone.changed or fluentbit_filter_keystone.changed
+
 - name: Keystone Service Consul Config
   ansible.builtin.template:
     src: etc/consul.d/50_keystone.service.hcl
