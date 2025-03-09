@@ -1,9 +1,3 @@
-- name: CREATE OPENSTACK SERVICES GROUP
-  ansible.builtin.group:
-    name: openstack-services
-    state: present
-    gid: 64100
-
 - name: INSTALL UTILS UBUNTU
   ansible.builtin.package:
     name:
@@ -14,47 +8,12 @@
       - curl
       - git
     state: present
-  when: ansible_distribution == 'Ubuntu'
-
-- name: INSTALL UTILS FREEBSD
-  ansible.builtin.package:
-    name:
-      - sysutils/htop
-      - sysutils/py-glances
-      - ftp/curl
-      - devel/git
-      - lang/rust
-    state: present
-  when: ansible_distribution == 'FreeBSD'
 
 - name: UBUNTU CLOUD KEYRING
   ansible.builtin.package:
     name: ubuntu-cloud-keyring
     state: present
-  when: ansible_distribution == 'Ubuntu'
 
-- name: UBUNTU INSTALL OPENSTACK REPO
+- name: INSTALL OPENSTACK REPO
   ansible.builtin.apt_repository:
-    repo: deb http://ubuntu-cloud.archive.canonical.com/ubuntu jammy-updates/zed main
-  when: ansible_distribution == 'Ubuntu'
-
-- name: INSTALL PROMETHEUS EXPORTERS UBUNTU
-  ansible.builtin.package:
-    name:
-      - prometheus-node-exporter
-    state: present
-  when: ansible_distribution == 'Ubuntu'
-
-- name: INSTALL PROMETHEUS EXPORTERS FREEBSD
-  ansible.builtin.package:
-    name:
-      - sysutils/node_exporter
-    state: present
-  when: ansible_distribution == 'FreeBSD'
-
-- name: ENABLE & START PROMETHEUS EXPORTERS FREEBSD
-  ansible.builtin.service:
-    name: node_exporter
-    state: started
-    enabled: true
-  when: ansible_distribution == 'FreeBSD'
+    repo: deb http://ubuntu-cloud.archive.canonical.com/ubuntu noble-updates/dalmatian main

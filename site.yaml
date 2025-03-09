@@ -1,118 +1,20 @@
 - name: Base Shared
   hosts: all
-  remote_user: ansible
+  remote_user: ubuntu
   become: true
   roles:
     - base-shared
 
 - name: Base Controller
   hosts: controllers
-  remote_user: ansible
+  remote_user: ubuntu
   become: true
   roles:
     - base-controller
 
-- name: Base Compute
-  hosts: compute
-  remote_user: ansible
-  become: true
-  roles:
-    - base-compute
-
-- name: SQL Database
-  hosts: sql_database
-  remote_user: ansible
-  become: true
-  roles:
-    - sql-database
-
-- name: Message Queue
-  hosts: message_queue
-  remote_user: ansible
-  become: true
-  roles:
-    - message-queue
-
-- name: Memcache
-  hosts: memcache
-  remote_user: ansible
-  become: true
-  roles:
-    - memcache
-
 - name: Keystone
   hosts: keystone
-  remote_user: ansible
+  remote_user: ubuntu
   become: true
   roles:
     - keystone
-
-- name: Cinder Controller
-  hosts: cinder_controllers
-  remote_user: ansible
-  become: true
-  roles:
-    - cinder-controller
-
-- name: Cinder Storage
-  hosts: cinder_storage
-  remote_user: ansible
-  become: true
-  roles:
-    - cinder-storage
-
-- name: Glance
-  hosts: glance_controllers
-  remote_user: ansible
-  become: true
-  roles:
-    - glance
-
-- name: Placement
-  hosts: placement_controllers
-  remote_user: ansible
-  become: true
-  roles:
-    - placement
-
-- name: Nova Controller
-  hosts: nova_controllers
-  remote_user: ansible
-  become: true
-  roles:
-    - nova-controller
-
-- name: Nova Compute
-  hosts: compute
-  remote_user: ansible
-  become: true
-  roles:
-    - nova-compute
-
-- name: Neutron Controller
-  hosts: neutron_controllers
-  remote_user: ansible
-  become: true
-  roles:
-    - neutron-controller
-
-- name: Neutron Compute
-  hosts: compute
-  remote_user: ansible
-  become: true
-  roles:
-    - neutron-compute
-
-- name: Octavia Controller
-  hosts: octavia_controllers
-  remote_user: ansible
-  become: true
-  roles:
-    - octavia-controller
-
-- name: Dashboard
-  hosts: dashboard
-  remote_user: ansible
-  become: true
-  roles:
-    - dashboard

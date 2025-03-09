@@ -1,0 +1,3 @@
+{{ with secret "pki_openstack_postgres_root/cert/ca" }}
+{{ .Data.certificate }}
+{{ end }}

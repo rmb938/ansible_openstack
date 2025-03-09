@@ -1,26 +1,42 @@
-- name: Create keystone database
-  community.mysql.mysql_db:
-    name: keystone
-    state: present
-    login_user: root
-    login_password: "{{ openstack_sql_root_dbpass }}"
-    login_unix_socket: /var/run/mysql/mysql.sock
-  delegate_to: "{{ groups['sql_database'][0] }}"
+---
+- name: Place fluentbit input for keystone
+  ansible.builtin.template:
+    src: etc/fluent-bit-inputs.d/50_keystone.conf
+    dest: /etc/fluent-bit-inputs.d/50_keystone.conf
+    owner: root
+    group: root
+    mode: "0644"
+  register: fluentbit_input_keystone
 
-- name: Create keystone database user
-  community.mysql.mysql_user:
-    name: keystone
-    password: "{{ openstack_keystone_dbpass }}"
-    priv: "keystone.*:ALL"
-    host: "{{ item }}"
-    state: present
-    login_user: root
-    login_password: "{{ openstack_sql_root_dbpass }}"
-    login_unix_socket: /var/run/mysql/mysql.sock
-  delegate_to: "{{ groups['sql_database'][0] }}"
-  with_items:
-    - localhost
-    - "%"
+- name: Place fluentbit filter for keystone
+  ansible.builtin.template:
+    src: etc/fluent-bit-filters.d/50_keystone.conf
+    dest: /etc/fluent-bit-filters.d/50_keystone.conf
+    owner: root
+    group: root
+    mode: "0644"
+  register: fluentbit_filter_keystone
+
+- name: Restart fluentbit # noqa: no-handler
+  ansible.builtin.systemd:
+    name: fluent-bit
+    state: restarted
+  when: fluentbit_input_keystone.changed or fluentbit_filter_keystone.changed
+
+- name: Keystone Service Consul Config
+  ansible.builtin.template:
+    src: etc/consul.d/50_keystone.service.hcl
+    dest: /etc/consul.d/50_50_keystone.service.hcl
+    mode: "0644"
+    owner: consul
+    group: consul
+  register: keystone_service_consul_config
+
+- name: Restart Consul # noqa: no-handler
+  ansible.builtin.systemd_service:
+    name: consul
+    state: restarted
+  when: keystone_service_consul_config.changed
 
 - name: INSTALL KEYSTONE
   ansible.builtin.package:
@@ -28,209 +44,331 @@
       - keystone
     state: present
 
-- name: KEYSTONE CONFIGURATION
+# Start Consul Template Keystone
+- name: Add keystone to sudoers
+  community.general.sudoers:
+    name: keystone
+    user: keystone
+    nopassword: true
+    validation: required
+    commands:
+      - /usr/bin/systemctl reload-or-restart apache2
+    state: present
+
+- name: Configure Consul Template for Keystone
   ansible.builtin.template:
-    src: ./etc/keystone/keystone.conf
-    dest: /etc/keystone/keystone.conf
+    src: etc/consul-template/consul-template-keystone.hcl
+    dest: /etc/consul-template/consul-template-keystone.hcl
+    mode: "0644"
     owner: keystone
     group: keystone
-    mode: 0640
-  register: keystone_configuration
+  register: consul_template_keystone_config
+
+- name: Create Consul Template for Keystone Templates directory
+  ansible.builtin.file:
+    path: /etc/consul-template/templates/keystone/
+    state: directory
+    mode: "0744"
+    owner: keystone
+    group: keystone
+
+- name: Place Consul Template for Keystone Templates Files
+  ansible.builtin.copy:
+    src: "{{ item }}"
+    dest: "/etc/consul-template/templates/keystone/{{ item | basename }}"
+    mode: "0644"
+    owner: keystone
+    group: keystone
+  with_fileglob:
+    - ../files/etc/consul-template/templates/keystone/*.ctmpl
+  register: consul_template_keystone_templates_files
+
+- name: Place Consul Template for Keystone Templates Templates
+  ansible.builtin.template:
+    src: "{{ item }}"
+    dest: "/etc/consul-template/templates/keystone/{{ item | basename }}"
+    mode: "0644"
+    owner: keystone
+    group: keystone
+  with_fileglob:
+    - ../templates/etc/consul-template/templates/keystone/*.ctmpl
+  register: consul_template_keystone_templates
+
+- name: Consul Template for Keystone SystemD
+  ansible.builtin.template:
+    src: etc/systemd/system/consul-template-keystone.service
+    dest: /etc/systemd/system/consul-template-keystone.service
+    mode: "0644"
+  register: consul_template_keystone_systemd
+
+- name: Consul Template for Keystone systemd # noqa: no-handler
+  ansible.builtin.systemd:
+    daemon_reload: true
+  when: consul_template_keystone_systemd.changed
+
+- name: Start and enable Consul Template for Keystone
+  ansible.builtin.systemd:
+    name: consul-template-keystone
+    state: started
+    enabled: true
+
+- name: Restart Consul Template for Keystone if config changed # noqa: no-handler
+  ansible.builtin.systemd:
+    name: consul-template-keystone
+    state: reloaded
+  when: consul_template_keystone_templates.changed or
+    consul_template_keystone_config.changed or
+    consul_template_keystone_templates_files.changed
+# End Consul Template Keystone
+
+- name: Remove Listen 80
+  ansible.builtin.lineinfile:
+    path: /etc/apache2/ports.conf
+    regexp: "^Listen 80$"
+    state: absent
+  register: apache2_ports
+
+- name: Enable Apache2 SSL Mod
+  ansible.builtin.command:
+    cmd: /usr/sbin/a2enmod ssl
+    creates: /etc/apache2/mods-enabled/ssl.load
+  register: apache2_ssl_mod
+
+- name: Enable Apache2 Headers Mod
+  ansible.builtin.command:
+    cmd: /usr/sbin/a2enmod headers
+    creates: /etc/apache2/mods-enabled/headers.load
+  register: apache2_headers_mod
+
+- name: RESTART APACHE2 # noqa: no-handler
+  ansible.builtin.systemd_service:
+    name: apache2
+    state: restarted
+  when: apache2_ports.changed or
+    apache2_ssl_mod.changed or
+    apache2_headers_mod.changed
+
+- name: Create Apache2 Certificates
+  ansible.builtin.command: >-
+    step ca certificate {{ ansible_fqdn }}
+    /etc/keystone/keystone-public.crt
+    /etc/keystone/keystone-public.key
+    --ca-url https://step-ca.us-homelab1.hl.rmb938.me:8443
+    --root /usr/local/share/ca-certificates/smallstep-homelab-prod.crt
+  args:
+    creates: "/etc/keystone/keystone-public.crt"
+
+- name: Own Apache2 certificates
+  ansible.builtin.file:
+    path: /etc/keystone/{{ item }}
+    owner: keystone
+    group: keystone
+    mode: "0600"
+  with_items:
+    - keystone-public.crt
+    - keystone-public.key
+
+- name: Cron to renew Apache2 certificates
+  ansible.builtin.cron:
+    name: "renew apache2 certificates"
+    special_time: "hourly"
+    # Rekey needs to happen against the CA, RA's don't support rekey
+    # https://smallstep.com/docs/step-ca/registration-authority-ra-mode/#stepcas-limitations
+    job: >-
+      step ca rekey /etc/keystone/keystone-public.crt
+      /etc/keystone/keystone-public.key
+      --ca-url https://step-ca.us-homelab1.hl.rmb938.me
+      --root /usr/local/share/ca-certificates/smallstep-homelab-prod.crt
+      --force --expires-in 720h --exec "systemctl try-reload-or-restart patroni"
+    state: present
+
+- name: CONFIGURE APACHE2
+  ansible.builtin.template:
+    src: etc/apache2/sites-available/keystone.conf
+    dest: /etc/apache2/sites-available/keystone.conf
+    mode: "0644"
+    owner: keystone
+    group: keystone
+  register: apache2_config
+
+- name: CONFIGURE KEYSTONE
+  ansible.builtin.template:
+    src: etc/keystone/keystone.conf
+    dest: /etc/keystone/keystone.conf
+    mode: "0600"
+    owner: keystone
+    group: keystone
+  register: keystone_config
+
+- name: RESTART APACHE2 # noqa: no-handler
+  ansible.builtin.systemd_service:
+    name: apache2
+    state: restarted
+  when: apache2_config.changed or
+    keystone_config.changed
+
+- name: FERNET SETUP
+  ansible.builtin.command:
+    cmd: /usr/bin/keystone-manage fernet_setup --keystone-user keystone --keystone-group keystone
+    creates: "/etc/keystone/fernet-keys/0"
+  become: true
+  become_user: keystone
+  run_once: true
+  delegate_to: "{{ groups['keystone'][0] }}"
+
+# TODO: this is commented out for now so we aren't contantly rotating
+# - name: FERNET ROTATE # noqa: no-changed-when
+#   ansible.builtin.command:
+#     cmd: /usr/bin/keystone-manage fernet_rotate --keystone-user keystone --keystone-group keystone
+#   become: true
+#   become_user: keystone
+#   run_once: true
+#   delegate_to: "{{ groups['keystone'][0] }}"
+
+# Shell to allow rsync
+- name: SET KEYSTONE USER SHELL
+  ansible.builtin.user:
+    name: keystone
+    shell: /bin/bash
+    password: "!"
+
+- name: Create .ssh dir
+  ansible.builtin.file:
+    path: /var/lib/keystone/.ssh
+    state: directory
+    owner: keystone
+    group: keystone
+    mode: "0700"
+
+- name: Create ssh keypair
+  community.crypto.openssh_keypair:
+    path: /var/lib/keystone/.ssh/id_ecdsa
+    owner: keystone
+    group: keystone
+    mode: "0600"
+    type: ed25519
+  run_once: true
+  delegate_to: "{{ groups['keystone'][0] }}"
+  register: ssh_keypair
+
+- name: Place SSH Authorized Keys
+  ansible.posix.authorized_key:
+    user: keystone
+    state: present
+    key: "{{ ssh_keypair.public_key }}"
+  when: inventory_hostname != groups['keystone'][0]
+
+- name: SYNC FERNET
+  ansible.posix.synchronize:
+    src: /etc/keystone/fernet-keys/
+    dest: /etc/keystone/fernet-keys/
+    set_remote_user: false
+    rsync_path: /usr/bin/rsync
+    delete: true
+  become: true
+  become_user: keystone
+  when: inventory_hostname != groups['keystone'][0]
+  delegate_to: "{{ groups['keystone'][0] }}"
 
 # START COPIED FROM OFFICIAL OPENSTACK ANSIBLE
 # This is slightly modified but it works for them and we would be doing the same stuff
-- name: CHECK KEYSTONE DB_SYNC
-  command: "/usr/bin/keystone-manage db_sync --check"
+# TODO: copied out for now, only need this when upgrading or installing for the first time
+# - name: Check current state of Keystone DB
+#   ansible.builtin.command:
+#     cmd: /usr/bin/keystone-manage db_sync --check
+#   become: true
+#   become_user: keystone
+#   register: keystone_db_sync_check
+#   failed_when: keystone_db_sync_check.rc == 1
+#   changed_when: keystone_db_sync_check.rc not in [2, 3, 4]
+#   run_once: true
+
+# - name: Set the db sync local facts
+#   community.general.ini_file:
+#     dest: "/etc/ansible/facts.d/openstack_ansible.fact"
+#     section: keystone
+#     option: "{{ item.name }}"
+#     value: "{{ item.state }}"
+#     mode: "0644"
+#   with_items:
+#     - name: "need_db_expand"
+#       state: "{{ (keystone_db_sync_check.rc | int == 2) | bool }}"
+#     - name: "need_db_contract"
+#       state: "{{ (keystone_db_sync_check.rc | int in [2, 3, 4]) | bool }}"
+
+# - name: Refresh local facts
+#   ansible.builtin.setup:
+#     filter: ansible_local
+#     gather_subset: "!all"
+
+# - name: Perform a Keystone DB sync expand # noqa: no-changed-when
+#   ansible.builtin.command:
+#     cmd: /usr/bin/keystone-manage db_sync --expand
+#   become: true
+#   become_user: keystone
+#   when: ansible_local['openstack_ansible']['keystone']['need_db_expand'] | bool
+#   run_once: true
+#   delegate_to: "{{ groups['keystone'][0] }}"
+
+# - name: Perform a Keystone DB sync contract # noqa: no-changed-when
+#   ansible.builtin.command:
+#     cmd: /usr/bin/keystone-manage db_sync --contract
+#   become: true
+#   become_user: keystone
+#   when: ansible_local['openstack_ansible']['keystone']['need_db_contract'] | bool
+#   run_once: true
+#   delegate_to: "{{ groups['keystone'][0] }}"
+# # END COPIED FROM OFFICIAL OPENSTACK ANSIBLE
+
+- name: CREDENTIAL SETUP
+  ansible.builtin.command:
+    cmd: /usr/bin/keystone-manage credential_setup --keystone-user keystone --keystone-group keystone
+    creates: "/etc/keystone/credential-keys/0"
   become: true
   become_user: keystone
-  register: keystone_db_sync_check
-  failed_when: "keystone_db_sync_check.rc == 1"
-  changed_when: false
   run_once: true
+  delegate_to: "{{ groups['keystone'][0] }}"
 
-- name: Set the db sync local facts
-  ini_file:
-    dest: "/etc/ansible/facts.d/openstack_ansible.fact"
-    section: keystone
-    option: "{{ item.name }}"
-    value: "{{ item.state }}"
-  with_items:
-    - name: "need_db_expand"
-      state: "{{ (keystone_db_sync_check.rc | int == 2) | bool }}"
-    - name: "need_db_migrate"
-      state: "{{ (keystone_db_sync_check.rc | int in [2, 3] ) | bool }}"
-    - name: "need_db_contract"
-      state: "{{ (keystone_db_sync_check.rc | int in [2, 3, 4]) | bool }}"
+# TODO: this is commented out for now so we aren't contantly rotating
+# - name: CREDENTIAL ROTATE  # noqa: no-changed-when
+#   ansible.builtin.command:
+#     cmd: /usr/bin/keystone-manage credential_rotate --keystone-user keystone --keystone-group keystone
+#   become: true
+#   become_user: keystone
+#   run_once: true
+#   delegate_to: "{{ groups['keystone'][0] }}"
 
-- name: Refresh local facts
-  setup:
-    filter: ansible_local
-    gather_subset: "!all"
+# - name: CREDENTIAL MIGRATE  # noqa: no-changed-when
+#   ansible.builtin.command:
+#     cmd: /usr/bin/keystone-manage credential_migrate --keystone-user keystone --keystone-group keystone
+#   become: true
+#   become_user: keystone
+#   run_once: true
+#   delegate_to: "{{ groups['keystone'][0] }}"
 
-- name: Stop Apache2 for DB Migration
-  ansible.builtin.systemd:
-    name: apache2
-    state: stopped
-  when:
-    - "(ansible_local['openstack_ansible']['keystone']['need_db_expand'] | bool) or (ansible_local['openstack_ansible']['keystone']['need_db_migrate'] | bool) or (ansible_local['openstack_ansible']['keystone']['need_db_contract'] | bool)"
-
-- name: Perform a Keystone DB sync expand
-  command: "/usr/bin/keystone-manage db_sync --expand"
+- name: SYNC CREDENTIAL
+  ansible.posix.synchronize:
+    src: /etc/keystone/credential-keys/
+    dest: /etc/keystone/credential-keys/
+    set_remote_user: false
+    rsync_path: /usr/bin/rsync
+    delete: true
   become: true
   become_user: keystone
-  when:
-    - "ansible_local['openstack_ansible']['keystone']['need_db_expand'] | bool"
-  run_once: true
-  # TODO: may need to notify memcache to flush cache
-
-- name: Perform a Keystone DB sync migrate
-  command: "/usr/bin/keystone-manage db_sync --migrate"
-  become: true
-  become_user: keystone
-  when:
-    - "ansible_local['openstack_ansible']['keystone']['need_db_migrate'] | bool"
-  run_once: true
-  # TODO: may need to notify memcache to flush cache
-
-- name: Perform a Keystone DB sync contract
-  command: "/usr/bin/keystone-manage db_sync --contract"
-  become: true
-  become_user: keystone
-  when:
-    - "ansible_local['openstack_ansible']['keystone']['need_db_contract'] | bool"
-  run_once: true
-  # TODO: may need to notify memcache to flush cache
-
-- name: Check if fernet keys exist
-  stat:
-    path: /etc/keystone/fernet-keys/0
-  register: _fernet_keys
-
-- name: Create fernet keys for Keystone
-  command: "/usr/bin/keystone-manage fernet_setup --keystone-user keystone --keystone-group keystone"
-  become: true
-  become_user: keystone
-  when: not _fernet_keys.stat.exists
-# END COPIED FROM OFFICIAL OPENSTACK ANSIBLE
-
-- name: Check if credential keys exist
-  stat:
-    path: /etc/keystone/credential-keys/0
-  register: _credential_keys
-
-- name: Create credentials keys for Keystone
-  command: "/usr/bin/keystone-manage credential_setup --keystone-user keystone --keystone-group keystone"
-  become: true
-  become_user: keystone
-  when: not _credential_keys.stat.exists
+  when: inventory_hostname != groups['keystone'][0]
+  delegate_to: "{{ groups['keystone'][0] }}"
 
 - name: Bootstrap keystone admin and endpoints
-  command: |
-    /usr/bin/keystone-manage bootstrap --bootstrap-password {{ openstack_admin_pass }} \
-    --bootstrap-admin-url http://{{ openstack_keystone_host }}:5000/v3/ \
-    --bootstrap-internal-url http://{{ openstack_keystone_host }}:5000/v3/ \
-    --bootstrap-public-url http://{{ openstack_keystone_host }}:5000/v3/ \
-    --bootstrap-region-id RegionOne
+  ansible.builtin.command:
+    # TODO: randomize this password
+    cmd: >-
+      /usr/bin/keystone-manage bootstrap --bootstrap-password admin-asdasd
+      --bootstrap-admin-url https://openstack-keystone.haproxy.us-homelab1.hl.rmb938.me/v3/
+      --bootstrap-internal-url https://openstack-keystone.haproxy.us-homelab1.hl.rmb938.me/v3/
+      --bootstrap-public-url https://openstack-keystone.haproxy.us-homelab1.hl.rmb938.me/v3/
+      --bootstrap-region-id us-homelab1
   become: true
   become_user: keystone
+  run_once: true
+  delegate_to: "{{ groups['keystone'][0] }}"
   changed_when: false
-
-- name: APACHE CONFIGURATION
-  ansible.builtin.template:
-    src: ./etc/apache2/apache2.conf
-    dest: /etc/apache2/apache2.conf
-    mode: 0644
-  register: apache_configuration
-
-- name: Restart Apache2 for configuration change
-  ansible.builtin.systemd:
-    name: apache2
-    state: restarted
-  when:
-    - "apache_configuration.changed or keystone_configuration.changed or (ansible_local['openstack_ansible']['keystone']['need_db_expand'] | bool) or (ansible_local['openstack_ansible']['keystone']['need_db_migrate'] | bool) or (ansible_local['openstack_ansible']['keystone']['need_db_contract'] | bool)"
-
-- name: CREATE SERVICE PROJECT
-  openstack.cloud.project:
-    cloud: admin
-    endpoint_type: admin
-    domain_id: default
-    description: "Service Project"
-    name: service
-    state: present
-  become: false
-
-- name: CREATE LOADBALANCER ADMIN ROLE
-  openstack.cloud.identity_role:
-    cloud: admin
-    endpoint_type: admin
-    name: load-balancer_admin
-    state: present
-  become: false
-
-- name: CREATE LOADBALANCER MEMBER ROLE
-  openstack.cloud.identity_role:
-    cloud: admin
-    endpoint_type: admin
-    name: load-balancer_member
-    state: present
-  become: false
-
-- name: ASSIGN ROLES TO ADMIN USER AND PROJECT
-  openstack.cloud.role_assignment:
-    cloud: admin
-    endpoint_type: admin
-    role: "{{ item }}"
-    user: admin
-    project: admin
-    state: present
-  become: false
-  with_items:
-    - member
-    - load-balancer_member
-
-- name: ASSIGN ROLES TO ADMIN USER
-  openstack.cloud.role_assignment:
-    cloud: admin
-    endpoint_type: admin
-    role: "{{ item }}"
-    user: admin
-    domain: default
-    state: present
-  become: false
-  with_items:
-    - admin
-    - load-balancer_admin
-
-- name: CREATE DEMO PROJECT
-  openstack.cloud.project:
-    cloud: admin
-    endpoint_type: admin
-    domain_id: default
-    description: "Demo Project"
-    name: demo
-    state: present
-  become: false
-
-- name: CREATE DEMO USER
-  no_log: true
-  openstack.cloud.identity_user:
-    cloud: admin
-    endpoint_type: admin
-    name: demo
-    password: "{{ openstack_demo_pass }}"
-    domain: default
-    state: present
-  become: false
-
-- name: ASSIGN ROLES TO DEMO USER AND PROJECT
-  openstack.cloud.role_assignment:
-    cloud: admin
-    endpoint_type: admin
-    role: "{{ item }}"
-    user: demo
-    project: demo
-    state: present
-  become: false
-  with_items:
-    - member
-    - load-balancer_member

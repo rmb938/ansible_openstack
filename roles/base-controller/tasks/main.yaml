@@ -1,26 +1,26 @@
-- name: CREATE CONFIG DIRECTORY
-  ansible.builtin.file:
-    path: "/home/{{ ansible_ssh_user }}/.config"
-    state: directory
-    mode: 0700
-    owner: "{{ ansible_ssh_user }}"
-    group: "{{ ansible_ssh_user }}"
+# - name: CREATE CONFIG DIRECTORY
+#   ansible.builtin.file:
+#     path: "/home/{{ ansible_ssh_user }}/.config"
+#     state: directory
+#     mode: "0700"
+#     owner: "{{ ansible_ssh_user }}"
+#     group: "{{ ansible_ssh_user }}"
 
-- name: CREATE OPENSTACK CONFIG DIRECTORY FOR REMOTE USER
-  ansible.builtin.file:
-    path: "/home/{{ ansible_ssh_user }}/.config/openstack"
-    state: directory
-    mode: 0700
-    owner: "{{ ansible_ssh_user }}"
-    group: "{{ ansible_ssh_user }}"
+# - name: CREATE OPENSTACK CONFIG DIRECTORY FOR REMOTE USER
+#   ansible.builtin.file:
+#     path: "/home/{{ ansible_ssh_user }}/.config/openstack"
+#     state: directory
+#     mode: "0700"
+#     owner: "{{ ansible_ssh_user }}"
+#     group: "{{ ansible_ssh_user }}"
 
-- name: CREATE OPENSTACK CLOUDS YAML FOR REMOTE USER
-  ansible.builtin.template:
-    src: "./home/ansible_ssh_user/.config/openstack/clouds.yaml"
-    dest: "/home/{{ ansible_ssh_user }}/.config/openstack/clouds.yaml"
-    mode: 0600
-    owner: "{{ ansible_ssh_user }}"
-    group: "{{ ansible_ssh_user }}"
+# - name: CREATE OPENSTACK CLOUDS YAML FOR REMOTE USER
+#   ansible.builtin.template:
+#     src: "./home/ansible_ssh_user/.config/openstack/clouds.yaml"
+#     dest: "/home/{{ ansible_ssh_user }}/.config/openstack/clouds.yaml"
+#     mode: "0600"
+#     owner: "{{ ansible_ssh_user }}"
+#     group: "{{ ansible_ssh_user }}"
 
 - name: INSTALL OPENSTACK CLIENT Ubuntu
   ansible.builtin.package:
@@ -28,18 +28,9 @@
       - python3-openstackclient
       - python3-osc-placement
       - python3-octaviaclient
-  when: ansible_distribution == 'Ubuntu'
 
-- name: INSTALL OPENSTACK CLIENT FREEBSD
+- name: INSTALL SUPPORTING LIBS
   ansible.builtin.package:
     name:
-      - net/py-python-openstackclient
-  when: ansible_distribution == 'FreeBSD'
-
-# FreeBSD doesn't have packages for these so install manually
-- name: INSTALL OSC CLIENT PLUGINS FREEBSD
-  ansible.builtin.pip:
-    name:
-      - osc-placement==4.0.0
-      - python-octaviaclient==3.1.0
-  when: ansible_distribution == 'FreeBSD'
+      - python3-psycopg
+      - python3-consul
