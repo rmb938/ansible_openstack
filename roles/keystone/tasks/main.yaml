@@ -42,7 +42,6 @@
   ansible.builtin.package:
     name:
       - keystone
-      - python3-psycopg
     state: present
 
 # Start Consul Template Keystone
