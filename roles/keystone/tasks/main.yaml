@@ -225,12 +225,12 @@
 #   run_once: true
 #   delegate_to: "{{ groups['keystone'][0] }}"
 
-# TODO: unsure if this is needed
-# - name: SET KEYSTONE USER SHELL
-#   ansible.builtin.user:
-#     name: keystone
-#     shell: /bin/bash
-#     password: "!"
+# Shell to allow rsync
+- name: SET KEYSTONE USER SHELL
+  ansible.builtin.user:
+    name: keystone
+    shell: /bin/bash
+    password: "!"
 
 - name: Create .ssh dir
   ansible.builtin.file:
